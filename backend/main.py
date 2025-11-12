@@ -1,6 +1,7 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 import cv2
 import numpy as np
@@ -38,9 +39,24 @@ except Exception as e:
 # Global webcam object (reused for efficiency)
 camera = None
 
+# Mount static files directory
+static_path = Path(__file__).parent / "static"
+app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
 
-@app.get("/")
+
+@app.get("/", response_class=HTMLResponse)
 async def root():
+    """Serve the main HTML page"""
+    index_file = static_path / "index.html"
+    if index_file.exists():
+        with open(index_file, 'r', encoding='utf-8') as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse(content="<h1>Lost Object Finder</h1><p>Static files not found.</p>")
+
+
+@app.get("/api")
+async def api_root():
+    """API information endpoint"""
     return {
         "message": "Lost Object Tracker API is running!",
         "status": "ok",
@@ -70,6 +86,7 @@ def get_camera():
     if camera is None or not camera.isOpened():
         # Try different camera backends for Windows
         backends = [
+            (cv2.CAP_DSHOW, "DirectShow"),  # More stable for Windows
             (cv2.CAP_MSMF, "Media Foundation (MSMF)"),  # Best for Windows 10/11
             (cv2.CAP_ANY, "Default"),
         ]
@@ -79,17 +96,31 @@ def get_camera():
                 print(f"🔍 Trying camera index {index} with {backend_name}...")
                 try:
                     camera = cv2.VideoCapture(index, backend)
+
+                    # Set properties BEFORE testing frame read - ULTRA OPTIMIZED for maximum speed
+                    camera.set(cv2.CAP_PROP_FRAME_WIDTH, 480)  # Very small resolution 640 -> 480 -> 320
+                    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)  # Very small resolution 480 -> 360 -> 240
+                    camera.set(cv2.CAP_PROP_FPS, 60)  # Higher FPS request
+                    camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))  # Use MJPEG for speed
+
+                    # Only set buffer size for non-MSMF backends (causes issues with MSMF)
+                    if backend != cv2.CAP_MSMF:
+                        camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
                     if camera.isOpened():
-                        # Test if we can actually read a frame
-                        ret, test_frame = camera.read()
-                        if ret:
-                            # Set camera properties for better performance
-                            camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-                            camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-                            camera.set(cv2.CAP_PROP_FPS, 30)
-                            camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Reduce latency
-                            print(f"✅ Camera opened successfully: index {index}, {backend_name}")
-                            return camera
+                        # Give camera time to initialize
+                        time.sleep(0.5)
+
+                        # Test if we can actually read multiple frames
+                        for _ in range(5):
+                            ret, test_frame = camera.read()
+                            if ret and test_frame is not None and test_frame.size > 0:
+                                width = int(camera.get(cv2.CAP_PROP_FRAME_WIDTH))
+                                height = int(camera.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                                print(f"✅ Camera opened successfully: index {index}, {backend_name} @ {width}x{height}")
+                                return camera
+                            time.sleep(0.1)
+
                     camera.release()
                 except Exception as e:
                     print(f"❌ Failed with {backend_name} index {index}: {e}")
@@ -201,27 +232,64 @@ def generate_frames(target_object: Optional[str] = None):
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
         return
     
-    # Normalize target object name for matching (lowercase, strip spaces)
-    target_normalized = target_object.lower().strip() if target_object else None
+    # Parse multiple target objects (comma-separated)
+    target_objects = []
+    if target_object:
+        target_objects = [obj.lower().strip() for obj in target_object.split(',')]
+
+    print(f"📹 Starting video stream - Looking for: {target_objects}")
 
     fps_start_time = time.time()
     fps_counter = 0
     current_fps = 0
-    
+    found_objects = set()  # Track which target objects were found
+    consecutive_errors = 0  # Track consecutive read errors
+    frame_skip = 2  # Process every 4th frame for MAXIMUM speed
+    frame_count = 0
+    last_detection_results = None  # Cache last detection results
+
     try:
         while True:
             success, frame = cam.read()
-            if not success:
-                print("⚠️ Failed to read frame from camera")
-                break
-            
-            # Run YOLO detection with lower confidence threshold
-            # Optimize: use imgsz=320 for faster inference (vs default 640)
-            results = model(frame, conf=0.3, verbose=False, imgsz=320)
-            
-            found_target = False
-            
-            # Process detections
+
+            # Validate frame read
+            if not success or frame is None or frame.size == 0:
+                consecutive_errors += 1
+                print(f"⚠️ Failed to read frame from camera (attempt {consecutive_errors})")
+
+                # If too many consecutive errors, break
+                if consecutive_errors > 10:
+                    print("❌ Too many consecutive frame read errors, stopping stream")
+                    break
+
+                time.sleep(0.1)
+                continue
+
+            # Reset error counter on successful read
+            consecutive_errors = 0
+
+            # Validate frame dimensions
+            if len(frame.shape) != 3 or frame.shape[2] != 3:
+                print(f"⚠️ Invalid frame shape: {frame.shape}")
+                continue
+
+            # Create a copy to avoid memory issues
+            frame = frame.copy()
+
+            frame_count += 1
+
+            # OPTIMIZATION: Skip frames - only run YOLO every Nth frame
+            if frame_count % frame_skip == 0:
+                # Run YOLO detection with AGGRESSIVE optimization
+                # Very small imgsz and high confidence for maximum speed
+                results = model(frame, conf=0.5, verbose=False, imgsz=160, half=False)
+                last_detection_results = results
+                found_objects.clear()  # Reset for each frame
+            else:
+                # Reuse last detection results for skipped frames
+                results = last_detection_results if last_detection_results else []
+
+            # Process detections - ONLY draw target objects for maximum speed
             for result in results:
                 boxes = result.boxes
                 for box in boxes:
@@ -230,66 +298,30 @@ def generate_frames(target_object: Optional[str] = None):
                     confidence = float(box.conf[0])
                     class_id = int(box.cls[0])
                     class_name = result.names[class_id]
-                    
-                    # Check if this is the target object
-                    is_target = (target_normalized and 
-                                class_name.lower() == target_normalized)
 
+                    # Check if this is one of the target objects
+                    is_target = class_name.lower() in target_objects if target_objects else False
+
+                    # ONLY draw target objects - skip others for speed
                     if is_target:
-                        found_target = True
-                        # Draw GREEN box for target object
+                        found_objects.add(class_name.lower())
+                        # Draw GREEN box for target object (thin line)
                         color = (0, 255, 0)  # Green
-                        thickness = 3
-                        
-                        # Draw bounding box
-                        cv2.rectangle(frame, (x1, y1), (x2, y2), color, thickness)
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 1)
 
-                        # Add "FOUND!" text above the box
-                        label = f"FOUND! {class_name} {confidence:.2f}"
-                        label_y = y1 - 30 if y1 - 30 > 30 else y1 + 30
-                        
-                        # Draw text background
-                        (text_width, text_height), _ = cv2.getTextSize(
-                            label, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2
-                        )
-                        cv2.rectangle(
-                            frame,
-                            (x1, label_y - text_height - 10),
-                            (x1 + text_width + 10, label_y + 5),
-                            color,
-                            -1
-                        )
-                        
-                        # Draw text
+                        # Add "FOUND!" text - small font
+                        label = f"FOUND!"
                         cv2.putText(
-                            frame, label, (x1 + 5, label_y),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2
-                        )
-                    else:
-                        # Draw RED box for other objects
-                        color = (0, 0, 255)  # Red
-                        thickness = 2
-                        
-                        cv2.rectangle(frame, (x1, y1), (x2, y2), color, thickness)
-                        
-                        # Add label
-                        label = f"{class_name} {confidence:.2f}"
-                        cv2.putText(
-                            frame, label, (x1, y1 - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2
+                            frame, label, (x1, y1 - 8),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1
                         )
 
-            # Add overlay status text
-            status_text = f"Looking for: {target_object or 'None'}"
-            cv2.putText(
-                frame, status_text, (10, 30),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2
-            )
-            
-            if found_target:
+            # Add overlay status - smaller
+            if target_objects and found_objects:
+                found_text = f"FOUND: {len(found_objects)}/{len(target_objects)}"
                 cv2.putText(
-                    frame, "STATUS: FOUND!", (10, 60),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2
+                    frame, found_text, (10, 25),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 0), 1
                 )
             
             # Calculate and display FPS
@@ -299,15 +331,16 @@ def generate_frames(target_object: Optional[str] = None):
                 fps_counter = 0
                 fps_start_time = time.time()
             
+            # Display FPS with smaller font
             cv2.putText(
                 frame, f"FPS: {current_fps}", (10, frame.shape[0] - 10),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2
+                cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 0), 1
             )
             
-            # Encode frame as JPEG with optimized quality (lower = faster)
+            # Encode frame as JPEG with VERY LOW quality for maximum speed
             ret, buffer = cv2.imencode('.jpg', frame, [
-                cv2.IMWRITE_JPEG_QUALITY, 75,  # Reduced from 85 for speed
-                cv2.IMWRITE_JPEG_OPTIMIZE, 1
+                cv2.IMWRITE_JPEG_QUALITY, 40,  # Very low quality for speed
+                cv2.IMWRITE_JPEG_OPTIMIZE, 0   # Disable optimization for speed
             ])
             if not ret:
                 continue
@@ -321,10 +354,17 @@ def generate_frames(target_object: Optional[str] = None):
     except GeneratorExit:
         print("🔴 Client disconnected from stream")
     except Exception as e:
-        print(f"❌ Error in frame generation: {e}")
+        import traceback
+        print(f"❌ Fatal error in frame generation: {e}")
+        print(traceback.format_exc())
+        # Release and reset camera on fatal error
+        if cam:
+            cam.release()
+        global camera
+        camera = None
     finally:
-        # Don't release camera here - keep it open for next connection
-        pass
+        # Don't release camera here on normal exit - keep it open for next connection
+        print("📹 Video stream ended")
 
 
 @app.get("/track")
@@ -431,6 +471,24 @@ async def delete_file(filename: str):
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Delete error: {str(e)}")
+
+
+@app.get("/stop_camera")
+async def stop_camera():
+    """
+    Release camera resources
+    """
+    global camera
+    try:
+        if camera is not None and camera.isOpened():
+            camera.release()
+            camera = None
+            print("📷 Camera released successfully")
+            return {"success": True, "message": "Camera stopped"}
+        else:
+            return {"success": True, "message": "Camera was not running"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 if __name__ == "__main__":

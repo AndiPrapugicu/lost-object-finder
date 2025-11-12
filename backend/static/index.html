@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lost Object Finder</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 Lost Object Finder</h1>
+            <p class="subtitle">Real-time object detection with YOLOv8 - 80 object classes</p>
+        </header>
+
+        <div class="card">
+            <div class="controls">
+                <button id="selectObjectsBtn" class="primary-btn">📋 Select Objects to Find</button>
+                <div class="selected-objects" id="selectedObjects">
+                    <span class="no-selection">No objects selected</span>
+                </div>
+                <div class="action-buttons">
+                    <button id="startBtn" disabled>▶️ Start Search</button>
+                    <button id="stopBtn" disabled>⏹️ Stop</button>
+                </div>
+            </div>
+
+            <div id="status" class="status"></div>
+
+            <div class="video-container">
+                <img id="videoFeed" src="" alt="Video feed will appear here" style="display: none;">
+                <div id="placeholder" class="loading">
+                    <p>👆 Click "Select Objects to Find" to choose what to search for</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Popup pentru Selecție Obiecte -->
+    <div id="objectModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🎯 Select Objects to Find</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="selection-actions">
+                    <button id="selectAllBtn" class="action-btn">✅ Select All</button>
+                    <button id="deselectAllBtn" class="action-btn">❌ Clear All</button>
+                    <div class="selected-count">Selected: <span id="selectedCount">0</span> objects</div>
+                </div>
+
+                <div id="categoriesContainer"></div>
+            </div>
+            <div class="modal-footer">
+                <button id="applySelectionBtn" class="primary-btn">✓ Apply Selection</button>
+                <button id="cancelBtn" class="secondary-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Toate obiectele organizate pe categorii
+        const categories = {
+            '🧍 People & Animals': ['person', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe'],
+            '🚗 Vehicles': ['bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat'],
+            '🚦 Street Objects': ['traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench'],
+            '🎒 Accessories': ['backpack', 'umbrella', 'handbag', 'tie', 'suitcase'],
+            '⚽ Sports': ['frisbee', 'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard', 'tennis racket'],
+            '🍽️ Kitchen & Dining': ['bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl'],
+            '🍎 Food': ['banana', 'apple', 'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake'],
+            '🪑 Furniture': ['chair', 'couch', 'potted plant', 'bed', 'dining table', 'toilet'],
+            '💻 Electronics': ['tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'refrigerator'],
+            '📚 Other Objects': ['book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush', 'sink']
+        };
+
+        let selectedObjects = new Set();
+        let streamActive = false;
+
+        const modal = document.getElementById('objectModal');
+        const selectObjectsBtn = document.getElementById('selectObjectsBtn');
+        const closeBtn = document.querySelector('.close');
+        const applyBtn = document.getElementById('applySelectionBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const selectAllBtn = document.getElementById('selectAllBtn');
+        const deselectAllBtn = document.getElementById('deselectAllBtn');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const videoFeed = document.getElementById('videoFeed');
+        const placeholder = document.getElementById('placeholder');
+        const status = document.getElementById('status');
+        const selectedObjectsDiv = document.getElementById('selectedObjects');
+        const selectedCountSpan = document.getElementById('selectedCount');
+
+        // Generare categorii și obiecte
+        function generateCategories() {
+            const container = document.getElementById('categoriesContainer');
+            container.innerHTML = '';
+
+            Object.entries(categories).forEach(([category, objects]) => {
+                const categoryDiv = document.createElement('div');
+                categoryDiv.className = 'category';
+
+                const categoryHeader = document.createElement('div');
+                categoryHeader.className = 'category-header';
+                categoryHeader.innerHTML = `
+                    <span class="category-name">${category}</span>
+                    <button class="select-category-btn" data-category="${category}">Select All</button>
+                `;
+                categoryDiv.appendChild(categoryHeader);
+
+                const objectsGrid = document.createElement('div');
+                objectsGrid.className = 'objects-grid';
+
+                objects.forEach(obj => {
+                    const objBtn = document.createElement('button');
+                    objBtn.className = 'object-btn';
+                    objBtn.dataset.object = obj;
+                    objBtn.textContent = obj;
+                    objBtn.addEventListener('click', () => toggleObject(obj, objBtn));
+                    objectsGrid.appendChild(objBtn);
+                });
+
+                categoryDiv.appendChild(objectsGrid);
+                container.appendChild(categoryDiv);
+
+                // Event pentru butonul "Select All" al categoriei
+                const selectCategoryBtn = categoryHeader.querySelector('.select-category-btn');
+                selectCategoryBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleCategory(category, objects, selectCategoryBtn);
+                });
+            });
+        }
+
+        function toggleObject(obj, btn) {
+            if (selectedObjects.has(obj)) {
+                selectedObjects.delete(obj);
+                btn.classList.remove('selected');
+            } else {
+                selectedObjects.add(obj);
+                btn.classList.add('selected');
+            }
+            updateSelectedCount();
+        }
+
+        function toggleCategory(category, objects, btn) {
+            const allSelected = objects.every(obj => selectedObjects.has(obj));
+
+            if (allSelected) {
+                // Deselect all
+                objects.forEach(obj => {
+                    selectedObjects.delete(obj);
+                    const objBtn = document.querySelector(`[data-object="${obj}"]`);
+                    if (objBtn) objBtn.classList.remove('selected');
+                });
+                btn.textContent = 'Select All';
+            } else {
+                // Select all
+                objects.forEach(obj => {
+                    selectedObjects.add(obj);
+                    const objBtn = document.querySelector(`[data-object="${obj}"]`);
+                    if (objBtn) objBtn.classList.add('selected');
+                });
+                btn.textContent = 'Deselect All';
+            }
+            updateSelectedCount();
+        }
+
+        function updateSelectedCount() {
+            selectedCountSpan.textContent = selectedObjects.size;
+        }
+
+        function updateSelectedObjectsDisplay() {
+            if (selectedObjects.size === 0) {
+                selectedObjectsDiv.innerHTML = '<span class="no-selection">No objects selected</span>';
+                startBtn.disabled = true;
+            } else {
+                const objectTags = Array.from(selectedObjects).map(obj =>
+                    `<span class="object-tag">${obj} <span class="remove-tag" data-object="${obj}">×</span></span>`
+                ).join('');
+                selectedObjectsDiv.innerHTML = objectTags;
+                startBtn.disabled = false;
+
+                // Add remove listeners
+                document.querySelectorAll('.remove-tag').forEach(tag => {
+                    tag.addEventListener('click', () => {
+                        const obj = tag.dataset.object;
+                        selectedObjects.delete(obj);
+                        updateSelectedObjectsDisplay();
+                    });
+                });
+            }
+        }
+
+        // Modal events
+        selectObjectsBtn.addEventListener('click', () => {
+            modal.style.display = 'block';
+            generateCategories();
+            // Restore previous selection
+            selectedObjects.forEach(obj => {
+                const btn = document.querySelector(`[data-object="${obj}"]`);
+                if (btn) btn.classList.add('selected');
+            });
+            updateSelectedCount();
+        });
+
+        closeBtn.addEventListener('click', () => modal.style.display = 'none');
+        cancelBtn.addEventListener('click', () => modal.style.display = 'none');
+
+        window.addEventListener('click', (e) => {
+            if (e.target === modal) modal.style.display = 'none';
+        });
+
+        applyBtn.addEventListener('click', () => {
+            updateSelectedObjectsDisplay();
+            modal.style.display = 'none';
+            if (selectedObjects.size > 0) {
+                showStatus(`✅ ${selectedObjects.size} object(s) selected`, 'success');
+            }
+        });
+
+        selectAllBtn.addEventListener('click', () => {
+            Object.values(categories).flat().forEach(obj => {
+                selectedObjects.add(obj);
+                const btn = document.querySelector(`[data-object="${obj}"]`);
+                if (btn) btn.classList.add('selected');
+            });
+            updateSelectedCount();
+            document.querySelectorAll('.select-category-btn').forEach(btn => {
+                btn.textContent = 'Deselect All';
+            });
+        });
+
+        deselectAllBtn.addEventListener('click', () => {
+            selectedObjects.clear();
+            document.querySelectorAll('.object-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            updateSelectedCount();
+            document.querySelectorAll('.select-category-btn').forEach(btn => {
+                btn.textContent = 'Select All';
+            });
+        });
+
+        function showStatus(message, type = 'info') {
+            status.textContent = message;
+            status.className = 'status ' + type;
+            status.style.display = 'block';
+        }
+
+        function startStream() {
+            if (selectedObjects.size === 0) {
+                showStatus('⚠️ Please select at least one object', 'error');
+                return;
+            }
+
+            streamActive = true;
+            const objectsList = Array.from(selectedObjects).join(',');
+            videoFeed.src = `/track?target_object=${encodeURIComponent(objectsList)}&t=${Date.now()}`;
+            videoFeed.style.display = 'block';
+            placeholder.style.display = 'none';
+
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            selectObjectsBtn.disabled = true;
+
+            showStatus(`🔍 Searching for ${selectedObjects.size} object(s)...`, 'info');
+        }
+
+        function stopStream() {
+            streamActive = false;
+            videoFeed.src = '';
+            videoFeed.style.display = 'none';
+            placeholder.style.display = 'block';
+
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            selectObjectsBtn.disabled = false;
+
+            // Call backend to stop and release camera
+            fetch('/stop_camera')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Camera stopped:', data);
+                    showStatus('⏹️ Stream stopped - Camera released', 'info');
+                })
+                .catch(error => {
+                    console.error('Error stopping camera:', error);
+                    showStatus('⏹️ Stream stopped', 'info');
+                });
+
+            setTimeout(() => status.style.display = 'none', 3000);
+        }
+
+        startBtn.addEventListener('click', startStream);
+        stopBtn.addEventListener('click', stopStream);
+
+
+        videoFeed.addEventListener('error', () => {
+            if (streamActive) {
+                showStatus('❌ Camera error. Please check camera access.', 'error');
+                stopStream();
+            }
+        });
+    </script>
+</body>
+</html>
+
