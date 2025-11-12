@@ -203,7 +203,7 @@ def generate_frames(target_object: Optional[str] = None):
     
     # Normalize target object name for matching (lowercase, strip spaces)
     target_normalized = target_object.lower().strip() if target_object else None
-    
+
     fps_start_time = time.time()
     fps_counter = 0
     current_fps = 0
@@ -234,7 +234,7 @@ def generate_frames(target_object: Optional[str] = None):
                     # Check if this is the target object
                     is_target = (target_normalized and 
                                 class_name.lower() == target_normalized)
-                    
+
                     if is_target:
                         found_target = True
                         # Draw GREEN box for target object
@@ -243,7 +243,7 @@ def generate_frames(target_object: Optional[str] = None):
                         
                         # Draw bounding box
                         cv2.rectangle(frame, (x1, y1), (x2, y2), color, thickness)
-                        
+
                         # Add "FOUND!" text above the box
                         label = f"FOUND! {class_name} {confidence:.2f}"
                         label_y = y1 - 30 if y1 - 30 > 30 else y1 + 30
@@ -278,7 +278,7 @@ def generate_frames(target_object: Optional[str] = None):
                             frame, label, (x1, y1 - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2
                         )
-            
+
             # Add overlay status text
             status_text = f"Looking for: {target_object or 'None'}"
             cv2.putText(
@@ -331,21 +331,21 @@ def generate_frames(target_object: Optional[str] = None):
 async def track_object(target_object: Optional[str] = Query(None, description="Name of object to find (e.g., 'phone', 'keys', 'bottle')")):
     """
     Real-time MJPEG video stream with YOLOv8 object detection.
-    
+
     Query Parameters:
         - target_object: Name of the object to highlight (optional)
-    
+
     Returns:
         - MJPEG stream with bounding boxes
         - Green boxes + "FOUND!" for target object
         - Red boxes for other detected objects
-    
+
     Usage:
         <img src="http://localhost:8000/track?target_object=phone" />
     """
     if not model:
         raise HTTPException(status_code=503, detail="YOLO model not loaded")
-    
+
     return StreamingResponse(
         generate_frames(target_object),
         media_type="multipart/x-mixed-replace; boundary=frame"
@@ -441,4 +441,4 @@ if __name__ == "__main__":
     print("\n🎯 Available object classes (YOLOv8):")
     if model:
         print("   ", ", ".join(list(model.names.values())[:20]), "... and more")
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=False)

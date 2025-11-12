@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import {
   Box,
   Paper,
@@ -13,6 +14,10 @@ import { styled, keyframes } from '@mui/material/styles';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import VideocamOffIcon from '@mui/icons-material/VideocamOff';
 import SearchIcon from '@mui/icons-material/Search';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
+
+type StreamStatus = 'Idle' | 'Searching' | 'Found';
 
 // Pulse animation for "FOUND!" banner
 const pulse = keyframes`
@@ -112,6 +117,7 @@ interface VideoFeedProps {
  *   - Error handling for connection failures
  *   - Dark mode Material UI styling
  *   - Responsive design
+ *   - Status system: Idle / Searching / Found
  */
 const VideoFeed: React.FC<VideoFeedProps> = ({
   targetObject,
@@ -124,6 +130,7 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
   const [cameraPermissionGranted, setCameraPermissionGranted] = useState(false);
   const [isCheckingCamera, setIsCheckingCamera] = useState(false);
   const [streamEnabled, setStreamEnabled] = useState(false);
+  const [status, setStatus] = useState<StreamStatus>('Idle');
 
   // Construct stream URL with target object parameter
   const streamUrl = targetObject
@@ -139,35 +146,69 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
     setHasError(false);
     setErrorMessage('');
     setIsStreamActive(false);
+    setStatus(targetObject ? 'Searching' : 'Idle');
   }, [targetObject]);
+
+  // Poll backend to check if target object is found
+  useEffect(() => {
+    if (!targetObject || !isStreamActive || !streamEnabled) {
+      return;
+    }
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await axios.get(
+          `${backendUrl}/detect/current?target_object=${encodeURIComponent(targetObject)}`
+        );
+
+        if (response.data.target_found) {
+          setStatus('Found');
+        } else {
+          setStatus('Searching');
+        }
+      } catch (error) {
+        console.error('Failed to poll detection status:', error);
+      }
+    }, 1000); // Poll every second
+
+    return () => clearInterval(pollInterval);
+  }, [targetObject, isStreamActive, streamEnabled, backendUrl]);
 
   // Check camera availability on mount
   const checkCameraAvailability = async () => {
     setIsCheckingCamera(true);
     try {
-      const response = await fetch(`${backendUrl}/list_cameras`);
-      const data = await response.json();
-      
+      const response = await axios.get(`${backendUrl}/list_cameras`);
+      const data = response.data;
+
       if (data.available_cameras && data.available_cameras.length > 0) {
         setCameraPermissionGranted(true);
-        setStreamEnabled(true); // Enable stream
-        setIsLoading(true); // Start loading the stream
+        setStreamEnabled(true);
+        setIsLoading(true);
+        setStatus('Idle');
       } else {
         setHasError(true);
         setErrorMessage('No camera detected. Please connect a camera and try again.');
       }
-    } catch {
+    } catch (error) {
       setHasError(true);
-      setErrorMessage('Cannot connect to backend. Make sure the server is running.');
+      setErrorMessage('Cannot connect to backend. Make sure the server is running at ' + backendUrl);
     } finally {
       setIsCheckingCamera(false);
     }
   };
 
-  const stopCamera = () => {
+  const stopCamera = async () => {
+    try {
+      await axios.post(`${backendUrl}/stream/stop`);
+      console.log('✅ Camera stopped via API');
+    } catch (error) {
+      console.error('❌ Failed to stop camera via API:', error);
+    }
     setStreamEnabled(false);
     setIsStreamActive(false);
     setIsLoading(false);
+    setStatus('Idle');
     console.log('📹 Camera stopped by user');
   };
 
@@ -175,6 +216,7 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
     setStreamEnabled(true);
     setIsLoading(true);
     setHasError(false);
+    setStatus(targetObject ? 'Searching' : 'Idle');
     console.log('📹 Camera restarted by user');
   };
 
@@ -182,6 +224,7 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
     setIsLoading(false);
     setHasError(false);
     setIsStreamActive(true);
+    setStatus(targetObject ? 'Searching' : 'Idle');
     console.log('✅ Video stream connected successfully');
   };
 
@@ -318,79 +361,84 @@ const VideoFeed: React.FC<VideoFeedProps> = ({
               onError={handleImageError}
             />
 
-          {/* Overlay: Searching or No Target */}
-          {isStreamActive && targetObject && (
-            <Fade in timeout={500}>
-              <OverlayBanner>
-                <SearchIcon sx={{ fontSize: 28, color: '#fff' }} />
-                <Typography
-                  variant="h6"
-                  sx={{
-                    color: '#fff',
-                    fontWeight: 700,
-                    textShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                  }}
-                >
-                  Searching for: {targetObject}
-                </Typography>
-              </OverlayBanner>
-            </Fade>
-          )}
+            {/* Status Overlay */}
+            {isStreamActive && (
+              <Fade in timeout={500}>
+                <OverlayBanner found={status === 'Found'}>
+                  {status === 'Idle' && (
+                    <>
+                      <VideocamIcon sx={{ fontSize: 28, color: '#fff' }} />
+                      <Typography variant="h6" sx={{ color: '#fff', fontWeight: 700 }}>
+                        Idle - Live Camera Feed
+                      </Typography>
+                    </>
+                  )}
+                  {status === 'Searching' && targetObject && (
+                    <>
+                      <SearchIcon sx={{ fontSize: 28, color: '#fff' }} />
+                      <Typography variant="h6" sx={{ color: '#fff', fontWeight: 700, textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
+                        Searching for: {targetObject}
+                      </Typography>
+                    </>
+                  )}
+                  {status === 'Found' && targetObject && (
+                    <>
+                      <CheckCircleIcon sx={{ fontSize: 28, color: '#fff' }} />
+                      <Typography variant="h6" sx={{ color: '#fff', fontWeight: 700 }}>
+                        Found: {targetObject}!
+                      </Typography>
+                    </>
+                  )}
+                </OverlayBanner>
+              </Fade>
+            )}
 
-          {/* No Target Set */}
-          {isStreamActive && !targetObject && (
-            <Fade in timeout={500}>
-              <OverlayBanner>
-                <VideocamIcon sx={{ fontSize: 28, color: '#fff' }} />
-                <Typography
-                  variant="h6"
-                  sx={{
-                    color: '#fff',
-                    fontWeight: 700,
-                  }}
-                >
-                  Live Camera Feed
-                </Typography>
-              </OverlayBanner>
-            </Fade>
-          )}
-
-          {/* Status Chip */}
-          {isStreamActive && (
-            <StatusChip
-              icon={<VideocamIcon sx={{ color: '#4caf50' }} />}
-              label="LIVE"
-            />
-          )}
-
-          {/* Stop Camera Button */}
-          {isStreamActive && (
-            <Box
-              sx={{
-                position: 'absolute',
-                bottom: '20px',
-                right: '20px',
-              }}
-            >
-              <Button
-                variant="contained"
-                size="small"
-                onClick={stopCamera}
-                startIcon={<VideocamOffIcon />}
+            {/* Status Chip */}
+            {isStreamActive && (
+              <StatusChip
+                icon={
+                  status === 'Found' ? <CheckCircleIcon sx={{ color: '#4caf50' }} /> :
+                  status === 'Searching' ? <HourglassEmptyIcon sx={{ color: '#2196f3' }} /> :
+                  <VideocamIcon sx={{ color: '#fff' }} />
+                }
+                label={`Status: ${status.toUpperCase()}`}
                 sx={{
-                  backgroundColor: 'rgba(211, 47, 47, 0.9)',
-                  backdropFilter: 'blur(10px)',
-                  '&:hover': {
-                    backgroundColor: 'rgba(183, 28, 28, 1)',
-                  },
-                  fontWeight: 600,
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+                  backgroundColor:
+                    status === 'Found' ? 'rgba(76, 175, 80, 0.9)' :
+                    status === 'Searching' ? 'rgba(33, 150, 243, 0.9)' :
+                    'rgba(33, 33, 33, 0.9)'
+                }}
+              />
+            )}
+
+            {/* Stop Camera Button */}
+            {isStreamActive && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: '20px',
+                  right: '20px',
                 }}
               >
-                Stop Camera
-              </Button>
-            </Box>
-          )}
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={stopCamera}
+                  startIcon={<VideocamOffIcon />}
+                  sx={{
+                    backgroundColor: 'rgba(211, 47, 47, 0.9)',
+                    backdropFilter: 'blur(10px)',
+                    '&:hover': {
+                      backgroundColor: 'rgba(183, 28, 28, 1)',
+                    },
+                    fontWeight: 600,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+                  }}
+                >
+                  Stop Camera
+                </Button>
+              </Box>
+            )}
           </Box>
         )}
       </VideoContainer>
