@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lost Object Finder</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        label {
+            font-weight: 600;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            padding: 12px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        button {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .video-container {
+            position: relative;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            min-height: 480px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #videoFeed {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            display: none;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+            display: block;
+        }
+
+        .loading {
+            text-align: center;
+            color: #999;
+            font-size: 18px;
+        }
+
+        .category {
+            margin-bottom: 10px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 2px solid #e0e0e0;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            cursor: pointer;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            transition: all 0.3s;
+            user-select: none;
+        }
+
+        .category-header:hover {
+            background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+        }
+
+        .category-header.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .category-header.active .category-title {
+            color: white;
+        }
+
+        .category-header.active .category-arrow {
+            color: white;
+        }
+
+        .category-checkbox-container {
+            display: flex;
+            align-items: center;
+            margin-right: 15px;
+        }
+
+        .category-checkbox-container input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: #667eea;
+        }
+
+        .category-title {
+            flex: 1;
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: color 0.3s;
+        }
+
+        .category-arrow {
+            font-size: 20px;
+            transition: transform 0.3s;
+            color: #667eea;
+        }
+
+        .category-arrow.open {
+            transform: rotate(90deg);
+        }
+
+        .category-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            padding: 0 15px;
+        }
+
+        .category-content.open {
+            max-height: 2000px;
+            padding: 15px;
+            transition: max-height 0.5s ease-in;
+        }
+
+        .object-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 8px;
+        }
+
+        .object-checkbox {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            user-select: none;
+        }
+
+        .object-checkbox:hover {
+            border-color: #667eea;
+            background: #f0f2ff;
+        }
+
+        .object-checkbox input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-right: 8px;
+            cursor: pointer;
+            accent-color: #667eea;
+        }
+
+        .object-checkbox.selected {
+            border-color: #4CAF50;
+            background: #e8f5e9;
+            font-weight: 600;
+        }
+
+        .object-checkbox label {
+            cursor: pointer;
+            flex: 1;
+            font-weight: normal;
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 30px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 Lost Object Finder</h1>
+            <p class="subtitle">Detectare obiecte în timp real folosind AI</p>
+        </header>
+
+        <div class="card">
+            <div id="statusMessage" class="status"></div>
+
+            <div class="controls">
+                <label>
+                    Caută obiect:
+                    <input type="text" id="objectInput" placeholder="Ex: phone, bottle, cup" value="phone">
+                </label>
+                <label style="min-width: auto;">
+                    <input type="checkbox" id="performanceMode">
+                    <span>Mod Performanță (30+ FPS)</span>
+                </label>
+                <button id="startBtn" onclick="startTracking()">▶️ Start Tracking</button>
+                <button id="stopBtn" onclick="stopTracking()" disabled>⏹️ Stop</button>
+            </div>
+
+            <div class="video-container">
+                <img id="videoFeed" src="" alt="Video Feed" style="display:none;">
+                <div class="loading">Apasă "Start Tracking" pentru a începe...</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>📋 Selectează Obiecte (Poți selecta mai multe!)</h3>
+            <p style="color: #666; margin-bottom: 15px;">
+                <span id="selectedCount" style="font-weight: bold; color: #667eea;">0 obiecte selectate</span>
+                <button onclick="clearSelection()" style="margin-left: 15px; padding: 5px 15px; font-size: 14px; background: #f44336;">✕ Șterge toate</button>
+            </p>
+            <div id="objectCategories"></div>
+        </div>
+
+        <div class="footer">
+            <p>🚀 Powered by YOLOv8 + FastAPI + OpenCV</p>
+            <p>Made with ❤️ in Python</p>
+            <p style="margin-top: 15px; font-size: 12px; opacity: 0.8;">
+                📱 <strong>Access from other devices:</strong> Connected to <span id="serverUrl" style="color: #ffd700;"></span>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Automatically detect backend URL (works on localhost and LAN)
+        const API_BASE = window.location.origin;
+        let isTracking = false;
+        let selectedObjects = new Set(); // Track multiple selected objects
+
+        // Categorized YOLO objects
+        const objectCategories = {
+            '📱 Electronice & Gadgeturi': [
+                'cell phone', 'laptop', 'mouse', 'keyboard', 'remote', 'tv',
+                'microwave', 'oven', 'toaster', 'hair drier'
+            ],
+            '🍽️ Bucătărie & Alimente': [
+                'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl',
+                'banana', 'apple', 'sandwich', 'orange', 'broccoli', 'carrot',
+                'hot dog', 'pizza', 'donut', 'cake', 'refrigerator', 'sink'
+            ],
+            '🪑 Mobilier & Casă': [
+                'chair', 'couch', 'potted plant', 'bed', 'dining table', 'toilet',
+                'book', 'clock', 'vase', 'scissors', 'teddy bear'
+            ],
+            '👔 Accesorii & Îmbrăcăminte': [
+                'backpack', 'umbrella', 'handbag', 'tie', 'suitcase'
+            ],
+            '🚗 Transport & Exterior': [
+                'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck',
+                'boat', 'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench'
+            ],
+            '🐕 Animale': [
+                'person', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant',
+                'bear', 'zebra', 'giraffe'
+            ],
+            '⚽ Sport & Recreere': [
+                'frisbee', 'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat',
+                'baseball glove', 'skateboard', 'surfboard', 'tennis racket'
+            ]
+        };
+
+        function showStatus(message, type = 'info') {
+            const status = document.getElementById('statusMessage');
+            status.textContent = message;
+            status.className = `status ${type}`;
+
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => {
+                    status.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        function startTracking() {
+            // Get objects from checkboxes or input field
+            if (selectedObjects.size === 0) {
+                const inputValue = document.getElementById('objectInput').value.trim();
+                if (!inputValue) {
+                    showStatus('⚠️ Te rog selectează cel puțin un obiect sau introdu-l manual!', 'error');
+                    return;
+                }
+                selectedObjects.add(inputValue);
+            }
+
+            const performanceMode = document.getElementById('performanceMode').checked;
+
+            isTracking = true;
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.querySelector('.loading').style.display = 'none';
+
+            const videoFeed = document.getElementById('videoFeed');
+            videoFeed.style.display = 'block';
+
+            // Join multiple objects with comma
+            const objectsToTrack = Array.from(selectedObjects).join(',');
+            let url = `${API_BASE}/track?target_object=${encodeURIComponent(objectsToTrack)}`;
+            if (performanceMode) {
+                url += '&performance_mode=true';
+            }
+
+            videoFeed.src = url + `&t=${Date.now()}`;
+
+            const modeText = performanceMode ? ' (Mod Performanță)' : '';
+            const count = selectedObjects.size;
+            showStatus(`🎯 Căutare activă pentru ${count} obiect${count > 1 ? 'e' : ''}: ${objectsToTrack}${modeText}`, 'success');
+        }
+
+        function stopTracking() {
+            isTracking = false;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+
+            const videoFeed = document.getElementById('videoFeed');
+            videoFeed.src = '';
+            videoFeed.style.display = 'none';
+            document.querySelector('.loading').style.display = 'block';
+            document.querySelector('.loading').textContent = 'Tracking oprit. Apasă "Start Tracking" pentru a relua...';
+
+            // Call backend to release camera
+            fetch(`${API_BASE}/stop_camera`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showStatus('⏹️ Camera oprită cu succes', 'info');
+                } else {
+                    showStatus('⚠️ Eroare la oprirea camerei: ' + data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error stopping camera:', error);
+                showStatus('⏹️ Tracking oprit', 'info');
+            });
+        }
+
+        function toggleObjectSelection(objectName, checkbox) {
+            if (checkbox.checked) {
+                selectedObjects.add(objectName);
+                checkbox.parentElement.classList.add('selected');
+            } else {
+                selectedObjects.delete(objectName);
+                checkbox.parentElement.classList.remove('selected');
+            }
+            updateSelectedCount();
+            updateInputField();
+        }
+
+        function clearSelection() {
+            selectedObjects.clear();
+            document.querySelectorAll('.object-checkbox input[type="checkbox"]').forEach(cb => {
+                cb.checked = false;
+                cb.parentElement.classList.remove('selected');
+            });
+            document.querySelectorAll('.category-checkbox').forEach(cb => {
+                cb.checked = false;
+            });
+            updateSelectedCount();
+            updateInputField();
+            showStatus('🗑️ Toate selecțiile au fost șterse', 'info');
+        }
+
+        function toggleCategory(categoryName) {
+            const categoryId = categoryName.replace(/[^a-z0-9]/gi, '-');
+            const content = document.getElementById(`content-${categoryId}`);
+            const arrow = document.getElementById(`arrow-${categoryId}`);
+            const header = document.getElementById(`header-${categoryId}`);
+
+            if (content.classList.contains('open')) {
+                content.classList.remove('open');
+                arrow.classList.remove('open');
+                header.classList.remove('active');
+            } else {
+                content.classList.add('open');
+                arrow.classList.add('open');
+                header.classList.add('active');
+            }
+        }
+
+        function toggleCategorySelection(categoryName, checkbox) {
+            const categoryId = categoryName.replace(/[^a-z0-9]/gi, '-');
+            const objectCheckboxes = document.querySelectorAll(`#content-${categoryId} .object-checkbox input[type="checkbox"]`);
+
+            objectCheckboxes.forEach(objCheckbox => {
+                objCheckbox.checked = checkbox.checked;
+                const objectName = objCheckbox.value;
+
+                if (checkbox.checked) {
+                    selectedObjects.add(objectName);
+                    objCheckbox.parentElement.classList.add('selected');
+                } else {
+                    selectedObjects.delete(objectName);
+                    objCheckbox.parentElement.classList.remove('selected');
+                }
+            });
+
+            updateSelectedCount();
+            updateInputField();
+        }
+
+        function updateSelectedCount() {
+            const count = selectedObjects.size;
+            document.getElementById('selectedCount').textContent =
+                `${count} obiect${count !== 1 ? 'e' : ''} selectat${count !== 1 ? 'e' : ''}`;
+        }
+
+        function updateInputField() {
+            const input = document.getElementById('objectInput');
+            if (selectedObjects.size > 0) {
+                input.value = Array.from(selectedObjects).join(', ');
+            } else {
+                input.value = '';
+            }
+        }
+
+        // Populate categorized object list with accordion and checkboxes
+        function populateObjectCategories() {
+            const container = document.getElementById('objectCategories');
+
+            for (const [categoryName, objects] of Object.entries(objectCategories)) {
+                const categoryId = categoryName.replace(/[^a-z0-9]/gi, '-');
+
+                const categoryDiv = document.createElement('div');
+                categoryDiv.className = 'category';
+
+                // Category header (clickable to expand/collapse)
+                const headerDiv = document.createElement('div');
+                headerDiv.className = 'category-header';
+                headerDiv.id = `header-${categoryId}`;
+
+                // Category checkbox (select all in category)
+                const checkboxContainer = document.createElement('div');
+                checkboxContainer.className = 'category-checkbox-container';
+
+                const categoryCheckbox = document.createElement('input');
+                categoryCheckbox.type = 'checkbox';
+                categoryCheckbox.className = 'category-checkbox';
+                categoryCheckbox.id = `cat-checkbox-${categoryId}`;
+                categoryCheckbox.onclick = (e) => {
+                    e.stopPropagation(); // Prevent accordion toggle
+                    toggleCategorySelection(categoryName, e.target);
+                };
+
+                checkboxContainer.appendChild(categoryCheckbox);
+                headerDiv.appendChild(checkboxContainer);
+
+                // Category title
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'category-title';
+                titleDiv.textContent = categoryName;
+                headerDiv.appendChild(titleDiv);
+
+                // Arrow indicator
+                const arrowSpan = document.createElement('span');
+                arrowSpan.className = 'category-arrow';
+                arrowSpan.id = `arrow-${categoryId}`;
+                arrowSpan.textContent = '▶';
+                headerDiv.appendChild(arrowSpan);
+
+                // Click handler for accordion (but not on checkbox)
+                headerDiv.onclick = (e) => {
+                    if (e.target !== categoryCheckbox) {
+                        toggleCategory(categoryName);
+                    }
+                };
+
+                categoryDiv.appendChild(headerDiv);
+
+                // Category content (collapsible)
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'category-content';
+                contentDiv.id = `content-${categoryId}`;
+
+                const gridDiv = document.createElement('div');
+                gridDiv.className = 'object-grid';
+
+                objects.forEach(obj => {
+                    const checkboxDiv = document.createElement('div');
+                    checkboxDiv.className = 'object-checkbox';
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.id = `obj-${obj.replace(/\s+/g, '-')}`;
+                    checkbox.value = obj;
+                    checkbox.onchange = (e) => {
+                        toggleObjectSelection(obj, e.target);
+                        updateCategoryCheckbox(categoryName);
+                    };
+
+                    const label = document.createElement('label');
+                    label.htmlFor = checkbox.id;
+                    label.textContent = obj;
+                    label.onclick = () => {
+                        checkbox.checked = !checkbox.checked;
+                        toggleObjectSelection(obj, checkbox);
+                        updateCategoryCheckbox(categoryName);
+                    };
+
+                    checkboxDiv.appendChild(checkbox);
+                    checkboxDiv.appendChild(label);
+                    gridDiv.appendChild(checkboxDiv);
+                });
+
+                contentDiv.appendChild(gridDiv);
+                categoryDiv.appendChild(contentDiv);
+                container.appendChild(categoryDiv);
+            }
+        }
+
+        function updateCategoryCheckbox(categoryName) {
+            const categoryId = categoryName.replace(/[^a-z0-9]/gi, '-');
+            const categoryCheckbox = document.getElementById(`cat-checkbox-${categoryId}`);
+            const objectCheckboxes = document.querySelectorAll(`#content-${categoryId} .object-checkbox input[type="checkbox"]`);
+
+            const checkedCount = Array.from(objectCheckboxes).filter(cb => cb.checked).length;
+            const totalCount = objectCheckboxes.length;
+
+            if (checkedCount === 0) {
+                categoryCheckbox.checked = false;
+                categoryCheckbox.indeterminate = false;
+            } else if (checkedCount === totalCount) {
+                categoryCheckbox.checked = true;
+                categoryCheckbox.indeterminate = false;
+            } else {
+                categoryCheckbox.checked = false;
+                categoryCheckbox.indeterminate = true;
+            }
+        }
+
+        // Check backend health on load
+        async function checkHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                if (data.status === 'healthy') {
+                    showStatus('✅ Backend conectat cu succes!', 'success');
+                } else {
+                    showStatus('⚠️ Backend rulează dar modelul nu este încărcat', 'error');
+                }
+            } catch (error) {
+                showStatus('❌ Nu se poate conecta la backend! Asigură-te că serverul rulează pe port 8000.', 'error');
+            }
+        }
+
+        // Initialize
+        populateObjectCategories();
+        checkHealth();
+
+        // Display server URL for LAN access info
+        document.getElementById('serverUrl').textContent = window.location.origin;
+
+        // Handle Enter key
+        document.getElementById('objectInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !document.getElementById('startBtn').disabled) {
+                startTracking();
+            }
+        });
+    </script>
+</body>
+</html>
+
