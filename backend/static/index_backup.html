@@ -6,9 +6,8 @@
 <title>Lost Object Finder</title>
 <link rel="stylesheet" href="/static/styles.css">
 </head>
-<body>
 <div id="darkModeToggle" class="dark-mode-toggle">🌙</div>
-
+<body>
 <div class="container">
     <header>
         <h1>🔍 Lost Object Finder</h1>
@@ -16,78 +15,73 @@
     </header>
 
     <div class="card">
-        <!-- Search Bar -->
         <div class="search-container">
             <input type="text" id="objectSearch" placeholder="Search objects..." autocomplete="off">
             <div id="searchResults" class="hidden"></div>
         </div>
 
-        <!-- Video/Image Display Area -->
         <div class="video-container">
             <img id="videoFeed" src="" alt="Video feed will appear here" style="display: none;">
             <div id="placeholder" class="loading">
-                <p>👆 Select objects below, then choose Camera or File mode</p>
+                <p>👆 Objects will appear below. Hover a category to see its objects.</p>
             </div>
         </div>
-
+        
         <div id="status" class="status"></div>
 
-        <!-- MODE SELECTION -->
         <div class="mode-selection">
-            <h3 style="text-align: center; margin: 20px 0 10px 0;">Choose Detection Mode:</h3>
+            <h3>Choose Detection Mode:</h3>
             <div class="mode-buttons">
-                <button id="cameraModeBtn" class="mode-btn">
+                <button id="cameraMode" class="mode-btn camera-mode">
                     📹 Live Camera Detection
                 </button>
-                <button id="fileModeBtn" class="mode-btn">
+                <button id="fileMode" class="mode-btn file-mode">
                     📁 Import File (Image/Video)
                 </button>
             </div>
         </div>
 
-        <!-- CAMERA MODE CONTROLS -->
+        <!-- Camera Mode Controls -->
         <div id="cameraControls" class="mode-controls hidden">
-            <h4 style="text-align: center;">🎥 Camera Mode</h4>
+            <h4>🎥 Camera Mode</h4>
             <div class="control-buttons">
                 <button id="startCameraBtn" class="main-btn start">▶ Start Camera Detection</button>
                 <button id="stopCameraBtn" class="main-btn stop" disabled>⏹ Stop Camera</button>
             </div>
         </div>
 
-        <!-- FILE MODE CONTROLS -->
+        <!-- File Mode Controls -->
         <div id="fileControls" class="mode-controls hidden">
-            <h4 style="text-align: center;">📁 File Mode</h4>
+            <h4>📁 File Mode</h4>
             <div class="browse-files-container">
                 <button id="browseBtn" class="main-btn browse">📂 Select Image or Video</button>
                 <input type="file" id="fileInput" accept="image/*,video/*" style="display:none;">
+                <div id="filePreview" class="file-preview"></div>
             </div>
-            <div id="filePreview" class="file-preview"></div>
             <div class="control-buttons">
                 <button id="detectFileBtn" class="main-btn start" disabled>▶ Detect Objects in File</button>
                 <button id="clearFileBtn" class="main-btn stop" disabled>🗑️ Clear File</button>
             </div>
         </div>
 
-        <!-- OBJECT SELECTION CONTROLS -->
-        <div class="control-buttons" style="margin-top: 20px;">
+        <!-- Selection Controls (common for both modes) -->
+        <div class="control-buttons">
             <button id="selectAllBtn" class="main-btn select-all">Select All Objects</button>
             <button id="deselectAllBtn" class="main-btn deselect-all">Deselect All Objects</button>
         </div>
 
-        <!-- SELECTED OBJECTS DISPLAY -->
         <div id="selectedObjectsContainer">
             <span id="selectedCountDisplay">Selected: 0</span>
             <div id="selectedObjectsList" class="hidden"></div>
         </div>
 
-        <!-- CATEGORIES -->
         <div class="categories-container" id="categoriesContainer"></div>
+
         <div class="objects-grid-popup" id="objectsPopup"></div>
     </div>
 </div>
 
 <script>
-// ==================== CATEGORIES DATA ====================
 const categories = {
     'People & Animals': ['person', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe'],
     'Vehicles': ['bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat'],
@@ -102,13 +96,14 @@ const categories = {
 };
 
 let selectedObjects = new Set();
+
 const categoriesContainer = document.getElementById('categoriesContainer');
 const popup = document.getElementById('objectsPopup');
 const status = document.getElementById('status');
-const videoFeed = document.getElementById('videoFeed');
-const placeholder = document.getElementById('placeholder');
 
-// ==================== GENERATE CATEGORIES ====================
+let activeCategory = null;
+
+// generăm categoriile
 Object.entries(categories).forEach(([catName, objects]) => {
     const catDiv = document.createElement('div');
     catDiv.className = 'category';
@@ -116,8 +111,11 @@ Object.entries(categories).forEach(([catName, objects]) => {
     catDiv.dataset.category = catName;
     categoriesContainer.appendChild(catDiv);
 
-    catDiv.addEventListener('mouseover', () => {
+    // Hover → afișează popup
+    catDiv.addEventListener('mouseover', (e) => {
+        activeCategory = catDiv;
         popup.innerHTML = '';
+
         objects.forEach(obj => {
             const btn = document.createElement('button');
             btn.className = 'object-btn';
@@ -137,28 +135,120 @@ Object.entries(categories).forEach(([catName, objects]) => {
         popup.style.display = 'flex';
     });
 
+    // Click pe categorie → selectează toate / deselectează toate
     catDiv.addEventListener('click', (e) => {
         e.stopPropagation();
         const allSelected = objects.every(obj => selectedObjects.has(obj));
+
         if (allSelected) {
             objects.forEach(obj => selectedObjects.delete(obj));
-            showStatus(`❌ Deselected all from ${catName}`, 'error');
+            showStatus(`❌ Deselected all ${objects.length} from ${catName}`, 'error');
         } else {
             objects.forEach(obj => selectedObjects.add(obj));
-            showStatus(`✅ Selected all from ${catName}`, 'success');
+            showStatus(`✅ Selected all ${objects.length} from ${catName}`, 'success');
         }
+
         document.querySelectorAll('.object-btn').forEach(btn => {
             if (objects.includes(btn.dataset.object)) {
                 btn.classList.toggle('selected', selectedObjects.has(btn.dataset.object));
             }
         });
-        updateSelectedDisplay();
     });
 });
 
-popup.addEventListener('mouseover', () => { popup.style.display = 'flex'; });
-popup.addEventListener('mouseout', () => { popup.style.display = 'none'; });
+// popup rămâne activ când treci peste el
+popup.addEventListener('mouseover', () => {
+    popup.style.display = 'flex';
+});
 
+popup.addEventListener('mouseout', () => {
+    popup.style.display = 'none';
+    activeCategory = null;
+});
+
+function toggleObject(obj, btn) {
+    if (selectedObjects.has(obj)) {
+        selectedObjects.delete(obj);
+        btn.classList.remove('selected');
+    } else {
+        selectedObjects.add(obj);
+        btn.classList.add('selected');
+    }
+}
+
+function showStatus(message, type = 'info') {
+    status.textContent = message;
+    status.className = 'status ' + type;
+    status.style.display = 'block';
+    setTimeout(() => status.style.display = 'none', 3000);
+}
+// ---------------- START/STOP CAMERA ----------------
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
+const videoFeed = document.getElementById('videoFeed');
+const placeholder = document.getElementById('placeholder');
+
+startBtn.addEventListener('click', async () => {
+    if (selectedObjects.size === 0) {
+        showStatus('⚠️ Please select at least one object before starting.', 'error');
+        return;
+    }
+
+    const target = Array.from(selectedObjects).join(',');
+    videoFeed.src = `/track?target_object=${encodeURIComponent(target)}`;
+    videoFeed.style.display = 'block';
+    placeholder.style.display = 'none';
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+
+    showStatus(`🎥 Detecting: ${target}`, 'info');
+});
+
+stopBtn.addEventListener('click', async () => {
+    await fetch('/stop_camera');
+    videoFeed.style.display = 'none';
+    placeholder.style.display = 'block';
+    videoFeed.src = '';
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    showStatus('🛑 Detection stopped.', 'error');
+});
+// ---------------- SELECT/DESELECT ALL ----------------
+const selectAllBtn = document.getElementById('selectAllBtn');
+const deselectAllBtn = document.getElementById('deselectAllBtn');
+
+selectAllBtn.addEventListener('click', () => {
+    Object.values(categories).flat().forEach(obj => selectedObjects.add(obj));
+    document.querySelectorAll('.object-btn').forEach(btn => btn.classList.add('selected'));
+    showStatus('✅ All objects selected', 'success');
+});
+
+deselectAllBtn.addEventListener('click', () => {
+    selectedObjects.clear();
+    document.querySelectorAll('.object-btn').forEach(btn => btn.classList.remove('selected'));
+    showStatus('❌ All objects deselected', 'error');
+});
+const selectedCountDisplay = document.getElementById('selectedCountDisplay');
+const selectedObjectsList = document.getElementById('selectedObjectsList');
+
+// Functie pentru update numar si lista
+function updateSelectedDisplay() {
+    selectedCountDisplay.textContent = `Selected: ${selectedObjects.size}`;
+    
+    selectedObjectsList.innerHTML = '';
+    selectedObjects.forEach(obj => {
+        const span = document.createElement('span');
+        span.textContent = obj;
+        selectedObjectsList.appendChild(span);
+    });
+}
+
+// Toggle lista obiecte la click pe numar
+selectedCountDisplay.addEventListener('click', () => {
+    selectedObjectsList.classList.toggle('hidden');
+});
+
+// Apeleaza update dupa selectare/deselectare
 function toggleObject(obj, btn) {
     if (selectedObjects.has(obj)) {
         selectedObjects.delete(obj);
@@ -170,17 +260,7 @@ function toggleObject(obj, btn) {
     updateSelectedDisplay();
 }
 
-function showStatus(message, type = 'info') {
-    status.textContent = message;
-    status.className = 'status ' + type;
-    status.style.display = 'block';
-    setTimeout(() => status.style.display = 'none', 4000);
-}
-
-// ==================== SELECT/DESELECT ALL ====================
-const selectAllBtn = document.getElementById('selectAllBtn');
-const deselectAllBtn = document.getElementById('deselectAllBtn');
-
+// Dupa click pe select all / deselect all, actualizeaza lista
 selectAllBtn.addEventListener('click', () => {
     Object.values(categories).flat().forEach(obj => selectedObjects.add(obj));
     document.querySelectorAll('.object-btn').forEach(btn => btn.classList.add('selected'));
@@ -195,174 +275,108 @@ deselectAllBtn.addEventListener('click', () => {
     showStatus('❌ All objects deselected', 'error');
 });
 
-// ==================== SELECTED DISPLAY ====================
-const selectedCountDisplay = document.getElementById('selectedCountDisplay');
-const selectedObjectsList = document.getElementById('selectedObjectsList');
-
-function updateSelectedDisplay() {
-    selectedCountDisplay.textContent = `Selected: ${selectedObjects.size}`;
-    selectedObjectsList.innerHTML = '';
-    selectedObjects.forEach(obj => {
-        const span = document.createElement('span');
-        span.textContent = obj;
-        selectedObjectsList.appendChild(span);
-    });
-}
-
-selectedCountDisplay.addEventListener('click', () => {
-    selectedObjectsList.classList.toggle('hidden');
-});
-
-// ==================== SEARCH FUNCTIONALITY ====================
 const objectSearch = document.getElementById('objectSearch');
 const searchResults = document.getElementById('searchResults');
+
+// Lista completa a obiectelor
 const allObjects = Object.values(categories).flat();
 
+// Functie pentru afisare rezultate filtrate
 objectSearch.addEventListener('input', () => {
     const query = objectSearch.value.toLowerCase();
     searchResults.innerHTML = '';
+
     if (query === '') {
         searchResults.classList.add('hidden');
         return;
     }
+
     const filtered = allObjects.filter(obj => obj.toLowerCase().startsWith(query));
+
     if (filtered.length === 0) {
         searchResults.classList.add('hidden');
         return;
     }
+
     filtered.forEach(obj => {
         const span = document.createElement('span');
         span.textContent = obj;
         span.addEventListener('click', () => {
+            // Adauga obiectul in selectedObjects
             selectedObjects.add(obj);
+
+            // Actualizeaza lista vizibila si butoanele
             document.querySelectorAll('.object-btn').forEach(btn => {
                 if (btn.dataset.object === obj) btn.classList.add('selected');
             });
             updateSelectedDisplay();
+
+            // Curata search bar
             objectSearch.value = '';
             searchResults.classList.add('hidden');
         });
         searchResults.appendChild(span);
     });
+
     searchResults.classList.remove('hidden');
 });
 
+// Ascunde rezultatele cand se da click in afara
 document.addEventListener('click', (e) => {
     if (!objectSearch.contains(e.target) && !searchResults.contains(e.target)) {
         searchResults.classList.add('hidden');
     }
 });
 
-// ==================== DARK MODE ====================
 const darkModeToggle = document.getElementById('darkModeToggle');
+
 darkModeToggle.addEventListener('click', () => {
-    document.body.classList.toggle('dark-mode');
-    darkModeToggle.textContent = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
+  document.body.classList.toggle('dark-mode');
+
+  // schimbă iconița
+  if(document.body.classList.contains('dark-mode')) {
+    darkModeToggle.textContent = '☀️'; // lumină
+  } else {
+    darkModeToggle.textContent = '🌙'; // întuneric
+  }
 });
-
-// ==================== MODE SELECTION ====================
-const cameraModeBtn = document.getElementById('cameraModeBtn');
-const fileModeBtn = document.getElementById('fileModeBtn');
-const cameraControls = document.getElementById('cameraControls');
-const fileControls = document.getElementById('fileControls');
-
-let currentMode = null;
-
-cameraModeBtn.addEventListener('click', () => {
-    currentMode = 'camera';
-    cameraControls.classList.remove('hidden');
-    fileControls.classList.add('hidden');
-    cameraModeBtn.classList.add('active');
-    fileModeBtn.classList.remove('active');
-
-    // Reset file mode
-    filePreview.innerHTML = '';
-    uploadedFile = null;
-    if (fileInput) fileInput.value = '';
-    detectFileBtn.disabled = true;
-    clearFileBtn.disabled = true;
-
-    videoFeed.style.display = 'none';
-    placeholder.style.display = 'block';
-    showStatus('📹 Camera mode selected. Select objects and start camera.', 'info');
-});
-
-fileModeBtn.addEventListener('click', () => {
-    currentMode = 'file';
-    fileControls.classList.remove('hidden');
-    cameraControls.classList.add('hidden');
-    fileModeBtn.classList.add('active');
-    cameraModeBtn.classList.remove('active');
-
-    // Stop camera if running
-    stopCamera();
-    showStatus('📁 File mode selected. Upload an image or video.', 'info');
-});
-
-// ==================== CAMERA MODE ====================
-const startCameraBtn = document.getElementById('startCameraBtn');
-const stopCameraBtn = document.getElementById('stopCameraBtn');
-
-startCameraBtn.addEventListener('click', async () => {
-    if (selectedObjects.size === 0) {
-        showStatus('⚠️ Please select at least one object before starting.', 'error');
-        return;
-    }
-    const target = Array.from(selectedObjects).join(',');
-    videoFeed.src = `/track?target_object=${encodeURIComponent(target)}`;
-    videoFeed.style.display = 'block';
-    placeholder.style.display = 'none';
-    startCameraBtn.disabled = true;
-    stopCameraBtn.disabled = false;
-    showStatus(`🎥 Camera started - Detecting: ${target}`, 'success');
-});
-
-stopCameraBtn.addEventListener('click', async () => {
-    await stopCamera();
-    showStatus('🛑 Camera stopped.', 'error');
-});
-
-async function stopCamera() {
-    await fetch('/stop_camera');
-    videoFeed.style.display = 'none';
-    placeholder.style.display = 'block';
-    videoFeed.src = '';
-    startCameraBtn.disabled = false;
-    stopCameraBtn.disabled = true;
-}
-
-// ==================== FILE MODE ====================
 const browseBtn = document.getElementById('browseBtn');
 const fileInput = document.getElementById('fileInput');
 const filePreview = document.getElementById('filePreview');
-const detectFileBtn = document.getElementById('detectFileBtn');
-const clearFileBtn = document.getElementById('clearFileBtn');
 
 let uploadedFile = null;
+let isFileMode = false; // Track if we're in file mode or camera mode
 
-browseBtn.addEventListener('click', () => { fileInput.click(); });
+browseBtn.addEventListener('click', () => {
+    fileInput.click();
+});
 
 fileInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
     uploadedFile = file;
+    isFileMode = true;
+
+    // Show preview
     const fileType = file.type.startsWith('image/') ? 'image' : 'video';
     const fileURL = URL.createObjectURL(file);
 
     filePreview.innerHTML = '';
+
     if (fileType === 'image') {
         const img = document.createElement('img');
         img.src = fileURL;
-        img.style.width = '100%';
-        img.style.height = 'auto';
+        img.style.maxWidth = '100%';
+        img.style.maxHeight = '300px';
         img.style.borderRadius = '10px';
         filePreview.appendChild(img);
     } else {
         const video = document.createElement('video');
         video.src = fileURL;
         video.controls = true;
-        video.style.width = '100%';
-        video.style.height = 'auto';
+        video.style.maxWidth = '100%';
+        video.style.maxHeight = '300px';
         video.style.borderRadius = '10px';
         filePreview.appendChild(video);
     }
@@ -373,109 +387,130 @@ fileInput.addEventListener('change', async (e) => {
     fileName.style.fontWeight = 'bold';
     filePreview.appendChild(fileName);
 
-    detectFileBtn.disabled = false;
-    clearFileBtn.disabled = false;
-    showStatus(`✅ File loaded: ${file.name}. Click "Detect Objects in File" to process.`, 'success');
+    // Hide video feed and show file preview
+    videoFeed.style.display = 'none';
+    placeholder.style.display = 'none';
+
+    showStatus(`✅ File loaded: ${file.name}`, 'success');
 });
 
-detectFileBtn.addEventListener('click', async () => {
+startBtn.addEventListener('click', async () => {
     if (selectedObjects.size === 0) {
-        showStatus('⚠️ Please select at least one object first.', 'error');
-        return;
-    }
-    if (!uploadedFile) {
-        showStatus('⚠️ Please select a file first.', 'error');
+        showStatus('⚠️ Please select at least one object before starting.', 'error');
         return;
     }
 
     const target = Array.from(selectedObjects).join(',');
-    detectFileBtn.disabled = true;
-    showStatus('🔄 Processing file... Please wait.', 'info');
 
-    const formData = new FormData();
-    formData.append('file', uploadedFile);
+    if (isFileMode && uploadedFile) {
+        // Process uploaded file
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
 
-    try {
-        const response = await fetch(`/detect_file?target_object=${encodeURIComponent(target)}`, {
-            method: 'POST',
-            body: formData
-        });
-        const result = await response.json();
+        showStatus('🔄 Processing file... Please wait.', 'info');
 
-        if (result.success) {
-            filePreview.innerHTML = '';
-            if (result.file_type === 'image') {
-                const img = document.createElement('img');
-                img.src = result.output_file + '?t=' + Date.now();
-                img.style.width = '100%';
-                img.style.height = 'auto';
-                img.style.borderRadius = '10px';
-                filePreview.appendChild(img);
+        const formData = new FormData();
+        formData.append('file', uploadedFile);
 
-                const info = document.createElement('p');
-                info.innerHTML = `<strong>✅ Detection Complete!</strong><br>
-                    Found ${result.count} objects<br>
-                    Target objects found: <span class="highlight">${result.found_target_objects.join(', ') || 'None'}</span>`;
-                info.style.marginTop = '15px';
-                info.style.fontSize = '16px';
-                filePreview.appendChild(info);
-                showStatus(`✅ Detected ${result.count} objects in image`, 'success');
-            } else if (result.file_type === 'video') {
-                const video = document.createElement('video');
-                video.src = result.output_file + '?t=' + Date.now();
-                video.controls = true;
-                video.autoplay = true;
-                video.loop = false;
-                video.style.width = '100%';
-                video.style.height = 'auto';
-                video.style.borderRadius = '10px';
+        try {
+            const response = await fetch(`/detect_file?target_object=${encodeURIComponent(target)}`, {
+                method: 'POST',
+                body: formData
+            });
 
-                // Event listener pentru când video-ul începe
-                video.addEventListener('playing', () => {
-                    showStatus('🎬 Video is now playing with bounding boxes!', 'success');
-                });
+            const result = await response.json();
 
-                // Event listener pentru erori
-                video.addEventListener('error', () => {
-                    showStatus('❌ Error playing video', 'error');
-                });
+            if (result.success) {
+                // Clear preview and show result
+                filePreview.innerHTML = '';
 
-                filePreview.appendChild(video);
+                if (result.file_type === 'image') {
+                    const img = document.createElement('img');
+                    img.src = result.output_file + '?t=' + Date.now(); // Add timestamp to avoid cache
+                    img.style.maxWidth = '100%';
+                    img.style.borderRadius = '10px';
+                    filePreview.appendChild(img);
 
-                const info = document.createElement('p');
-                info.innerHTML = `<strong>✅ Video Processing Complete!</strong><br>
-                    🎬 Video is now playing with GREEN bounding boxes!<br>
-                    Frames processed: ${result.frames_processed}<br>
-                    Total detections: ${result.total_detections}<br>
-                    Unique objects: ${result.unique_objects}<br>
-                    Target objects found: <span class="highlight">${result.found_target_objects.join(', ') || 'None'}</span>`;
-                info.style.marginTop = '15px';
-                info.style.fontSize = '16px';
-                filePreview.appendChild(info);
-                showStatus(`✅ Video ready! ${result.frames_processed} frames with bounding boxes`, 'success');
+                    const info = document.createElement('p');
+                    info.innerHTML = `
+                        <strong>✅ Detection Complete!</strong><br>
+                        Found ${result.count} objects<br>
+                        Target objects found: ${result.found_target_objects.join(', ') || 'None'}
+                    `;
+                    info.style.marginTop = '10px';
+                    filePreview.appendChild(info);
 
-                // Scroll to video
-                video.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    showStatus(`✅ Detected ${result.count} objects in image`, 'success');
+                } else if (result.file_type === 'video') {
+                    const video = document.createElement('video');
+                    video.src = result.output_file + '?t=' + Date.now();
+                    video.controls = true;
+                    video.style.maxWidth = '100%';
+                    video.style.borderRadius = '10px';
+                    filePreview.appendChild(video);
+
+                    const info = document.createElement('p');
+                    info.innerHTML = `
+                        <strong>✅ Video Processing Complete!</strong><br>
+                        Frames processed: ${result.frames_processed}<br>
+                        Total detections: ${result.total_detections}<br>
+                        Unique objects: ${result.unique_objects}<br>
+                        Target objects found: ${result.found_target_objects.join(', ') || 'None'}
+                    `;
+                    info.style.marginTop = '10px';
+                    filePreview.appendChild(info);
+
+                    showStatus(`✅ Processed ${result.frames_processed} frames`, 'success');
+                }
+            } else {
+                showStatus('❌ Detection failed', 'error');
             }
-        } else {
-            showStatus('❌ Detection failed', 'error');
+        } catch (error) {
+            console.error(error);
+            showStatus('❌ Error processing file', 'error');
         }
-    } catch (error) {
-        console.error(error);
-        showStatus('❌ Error processing file', 'error');
+
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+
+    } else {
+        // Camera mode
+        isFileMode = false;
+        filePreview.innerHTML = '';
+
+        videoFeed.src = `/track?target_object=${encodeURIComponent(target)}`;
+        videoFeed.style.display = 'block';
+        placeholder.style.display = 'none';
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+
+        showStatus(`🎥 Detecting: ${target}`, 'info');
     }
-    detectFileBtn.disabled = false;
 });
 
-clearFileBtn.addEventListener('click', () => {
-    filePreview.innerHTML = '';
-    uploadedFile = null;
-    fileInput.value = '';
-    detectFileBtn.disabled = true;
-    clearFileBtn.disabled = true;
-    showStatus('🗑️ File cleared. Upload a new file.', 'info');
+stopBtn.addEventListener('click', async () => {
+    if (isFileMode) {
+        // Reset file mode
+        filePreview.innerHTML = '';
+        uploadedFile = null;
+        isFileMode = false;
+        fileInput.value = '';
+        placeholder.style.display = 'block';
+    } else {
+        // Stop camera
+        await fetch('/stop_camera');
+        videoFeed.style.display = 'none';
+        placeholder.style.display = 'block';
+        videoFeed.src = '';
+    }
+
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+
+    showStatus('🛑 Detection stopped.', 'error');
 });
+
+
 </script>
 </body>
 </html>
-

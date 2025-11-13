@@ -43,6 +43,9 @@ camera = None
 static_path = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
 
+# Mount uploads directory for serving processed files
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
+
 # YOLO object categories organized by type
 OBJECT_CATEGORIES = {
     "People & Animals": {
@@ -522,6 +525,211 @@ async def upload_image(file: UploadFile = File(...)):
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload error: {str(e)}")
+
+
+@app.post("/detect_file")
+async def detect_file(
+    file: UploadFile = File(...),
+    target_object: Optional[str] = Query(None, description="Comma-separated list of objects to detect")
+):
+    """
+    Detect objects in uploaded image or video file.
+
+    For images: Returns annotated image with bounding boxes
+    For videos: Returns first frame with detections (later can be extended to full video)
+    """
+    if not model:
+        raise HTTPException(status_code=503, detail="YOLO model not loaded")
+
+    try:
+        # Read file content
+        contents = await file.read()
+        file_extension = file.filename.lower().split('.')[-1]
+
+        # Parse target objects
+        target_objects = []
+        if target_object:
+            target_objects = [obj.lower().strip() for obj in target_object.split(',')]
+
+        # Check if it's an image or video
+        image_extensions = ['jpg', 'jpeg', 'png', 'bmp', 'webp']
+        video_extensions = ['mp4', 'avi', 'mov', 'mkv', 'webm']
+
+        if file_extension in image_extensions:
+            # Process image
+            nparr = np.frombuffer(contents, np.uint8)
+            frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+            if frame is None:
+                raise HTTPException(status_code=400, detail="Invalid image file")
+
+            # Run YOLO detection
+            results = model(frame, conf=0.4, verbose=False)
+
+            # Process detections
+            detections = []
+            found_objects = set()
+
+            for result in results:
+                boxes = result.boxes
+                for box in boxes:
+                    x1, y1, x2, y2 = map(int, box.xyxy[0])
+                    confidence = float(box.conf[0])
+                    class_id = int(box.cls[0])
+                    class_name = result.names[class_id]
+
+                    # Check if it's a target object
+                    is_target = class_name.lower() in target_objects if target_objects else True
+
+                    detections.append({
+                        "class": class_name,
+                        "confidence": confidence,
+                        "bbox": [x1, y1, x2, y2],
+                        "is_target": is_target
+                    })
+
+                    if is_target:
+                        found_objects.add(class_name.lower())
+                        # Draw GREEN box for target object
+                        color = (0, 255, 0)
+                    else:
+                        # Draw BLUE box for other objects
+                        color = (255, 0, 0)
+
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+
+                    # Add label
+                    label = f"{class_name.upper()} {confidence:.2f}"
+                    (text_width, text_height), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)
+                    cv2.rectangle(frame, (x1, y1 - text_height - 8), (x1 + text_width, y1), color, -1)
+                    cv2.putText(frame, label, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+
+            # Add summary text
+            if target_objects:
+                summary = f"Found: {len(found_objects)}/{len(target_objects)} target objects"
+                cv2.putText(frame, summary, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+            # Encode annotated image
+            ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+            if not ret:
+                raise HTTPException(status_code=500, detail="Failed to encode image")
+
+            # Save annotated image
+            output_filename = f"detected_{file.filename}"
+            output_path = UPLOAD_DIR / output_filename
+            with open(output_path, 'wb') as f:
+                f.write(buffer.tobytes())
+
+            return JSONResponse(content={
+                "success": True,
+                "file_type": "image",
+                "detections": detections,
+                "count": len(detections),
+                "found_target_objects": list(found_objects),
+                "output_file": f"/uploads/{output_filename}"
+            })
+
+        elif file_extension in video_extensions:
+            # Save video temporarily
+            temp_video_path = UPLOAD_DIR / file.filename
+            with open(temp_video_path, 'wb') as f:
+                f.write(contents)
+
+            # Open video
+            cap = cv2.VideoCapture(str(temp_video_path))
+            if not cap.isOpened():
+                raise HTTPException(status_code=400, detail="Invalid video file")
+
+            # Get video properties
+            fps = int(cap.get(cv2.CAP_PROP_FPS))
+            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+            # Process video and create output
+            output_filename = f"detected_{file.filename}"
+            output_path = UPLOAD_DIR / output_filename
+
+            # Setup video writer
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            out = cv2.VideoWriter(str(output_path), fourcc, fps, (width, height))
+
+            all_detections = []
+            frame_num = 0
+            found_objects_total = set()
+
+            # Process every Nth frame for speed
+            process_every_n_frames = 5
+
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+
+                frame_num += 1
+
+                # Only run detection every N frames
+                if frame_num % process_every_n_frames == 0:
+                    results = model(frame, conf=0.4, verbose=False)
+
+                    for result in results:
+                        boxes = result.boxes
+                        for box in boxes:
+                            x1, y1, x2, y2 = map(int, box.xyxy[0])
+                            confidence = float(box.conf[0])
+                            class_id = int(box.cls[0])
+                            class_name = result.names[class_id]
+
+                            is_target = class_name.lower() in target_objects if target_objects else True
+
+                            if is_target:
+                                found_objects_total.add(class_name.lower())
+                                color = (0, 255, 0)
+                            else:
+                                color = (255, 0, 0)
+
+                            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                            label = f"{class_name.upper()} {confidence:.2f}"
+                            cv2.putText(frame, label, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
+                            all_detections.append({
+                                "frame": frame_num,
+                                "class": class_name,
+                                "confidence": confidence,
+                                "is_target": is_target
+                            })
+
+                # Add frame counter
+                cv2.putText(frame, f"Frame: {frame_num}/{frame_count}", (10, 30),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+
+                out.write(frame)
+
+            cap.release()
+            out.release()
+
+            return JSONResponse(content={
+                "success": True,
+                "file_type": "video",
+                "frames_processed": frame_num,
+                "total_detections": len(all_detections),
+                "unique_objects": len(set(d["class"] for d in all_detections)),
+                "found_target_objects": list(found_objects_total),
+                "output_file": f"/uploads/{output_filename}",
+                "video_info": {
+                    "fps": fps,
+                    "frame_count": frame_count,
+                    "resolution": f"{width}x{height}"
+                }
+            })
+
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported file type. Please upload image (jpg, png) or video (mp4, avi, mov)")
+
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Detection error: {str(e)}")
 
 
 @app.delete("/uploads/{filename}")

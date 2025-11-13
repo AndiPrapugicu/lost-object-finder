@@ -14,8 +14,9 @@ body {
 }
 
 .container {
-    max-width: 1000px;
+    max-width: 100%;
     margin: 0 auto;
+    padding: 0 10px;
 }
 
 header {
@@ -84,8 +85,9 @@ button:disabled {
     background: #1a1a1a;
     border-radius: 12px;
     overflow: hidden;
-    min-height: 400px;
-    max-width: 800px;
+    min-height: 500px;
+    max-width: 900px;
+    width: 100%;
     margin: 0 auto;
     display: flex;
     align-items: center;
@@ -95,6 +97,7 @@ button:disabled {
 #videoFeed {
     width: 100%;
     height: auto;
+    max-height: 600px;
     display: block;
 }
 
@@ -261,11 +264,47 @@ button:disabled {
     }
 
     .video-container {
-        min-height: 300px;
+        min-height: 350px;
+        max-width: 100%;
+    }
+
+    #videoFeed {
+        max-height: 400px;
     }
 
     .categories-container {
         gap: 8px;
+    }
+
+    .file-preview {
+        padding: 10px;
+        max-width: 100%;
+    }
+
+    .file-preview img,
+    .file-preview video {
+        max-height: 400px;
+    }
+}
+
+@media (min-width: 1400px) {
+    .video-container {
+        min-height: 600px;
+        max-width: 1100px;
+    }
+
+    #videoFeed {
+        max-height: 700px;
+    }
+
+    .file-preview {
+        max-width: 1100px;
+    }
+
+    .file-preview img,
+    .file-preview video {
+        max-width: 1100px;
+        max-height: 700px;
     }
 }
 /* ================= POPUP OBIECTE PENTRU FIECARE CATEGORIE ================= */
@@ -615,29 +654,46 @@ button:disabled {
 
 body.dark-mode {
   background: #121212;
-  color: #e0e0e0;
+  color: white;
+}
+
+body.dark-mode * {
+  color: white;
 }
 
 body.dark-mode header,
 body.dark-mode .card {
   background: #1e1e1e;
-  color: #e0e0e0;
+  color: white;
   box-shadow: 0 4px 15px rgba(0,0,0,0.7);
+}
+
+body.dark-mode h1,
+body.dark-mode .subtitle,
+body.dark-mode p,
+body.dark-mode span,
+body.dark-mode div {
+  color: white;
 }
 
 body.dark-mode .category {
   background: #333;
-  color: #fff;
+  color: white;
 }
 
 body.dark-mode .category:hover {
   background: #555;
+  color: white;
 }
 
 body.dark-mode .object-btn {
   background: #2a2a2a;
-  color: #fff;
+  color: white;
   border-color: #555;
+}
+
+body.dark-mode .object-btn:hover {
+  color: white;
 }
 
 body.dark-mode .object-btn.selected {
@@ -647,11 +703,158 @@ body.dark-mode .object-btn.selected {
 
 body.dark-mode .control-buttons .main-btn.start {
   background: linear-gradient(135deg, #00c853, #43a047);
+  color: white;
 }
 
 body.dark-mode .control-buttons .main-btn.stop {
   background: linear-gradient(135deg, #d32f2f, #f44336);
+  color: white;
 }
+
+body.dark-mode .main-btn {
+  color: white;
+}
+
+body.dark-mode #selectedCountDisplay {
+  color: white;
+}
+
+body.dark-mode #selectedObjectsList span {
+  color: white;
+}
+
+body.dark-mode .objects-grid-popup {
+  background: #1e1e1e;
+}
+
+body.dark-mode #searchResults {
+  background: #1e1e1e;
+  border-color: #555;
+}
+
+body.dark-mode #searchResults span {
+  color: white;
+}
+
+body.dark-mode #searchResults span:hover {
+  background: #667eea;
+  color: white;
+}
+
+body.dark-mode #objectSearch {
+  background: #2a2a2a;
+  color: white;
+  border-color: #555;
+}
+
+body.dark-mode .loading {
+  color: white;
+}
+
+body.dark-mode .status.success {
+  background: #1b5e20;
+  color: white;
+  border-color: #2e7d32;
+}
+
+body.dark-mode .status.error {
+  background: #b71c1c;
+  color: white;
+  border-color: #c62828;
+}
+
+body.dark-mode .status.info {
+  background: #01579b;
+  color: white;
+  border-color: #0277bd;
+}
+/* ============================= */
+/* MODE SELECTION */
+/* ============================= */
+.mode-selection {
+    margin: 20px 0;
+    text-align: center;
+}
+
+.mode-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 15px;
+    flex-wrap: wrap;
+}
+
+.mode-btn {
+    padding: 15px 30px;
+    font-size: 16px;
+    font-weight: 600;
+    border: 3px solid #667eea;
+    border-radius: 12px;
+    background: white;
+    color: #667eea;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 10px rgba(102, 126, 234, 0.2);
+}
+
+.mode-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(102, 126, 234, 0.4);
+}
+
+.mode-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-color: #764ba2;
+}
+
+.mode-controls {
+    margin: 20px 0;
+    padding: 20px;
+    background: #f5f5f5;
+    border-radius: 12px;
+    border: 2px solid #667eea;
+}
+
+.mode-controls h4 {
+    color: #667eea;
+    margin-bottom: 15px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Dark mode for mode selection */
+body.dark-mode .mode-btn {
+    background: #2a2a2a;
+    color: white;
+    border-color: #667eea;
+}
+
+body.dark-mode .mode-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+body.dark-mode .mode-controls {
+    background: #2a2a2a;
+    border-color: #667eea;
+}
+
+body.dark-mode .mode-controls h4 {
+    color: white;
+}
+
+.highlight {
+    color: #00c853;
+    font-weight: bold;
+}
+
+body.dark-mode .highlight {
+    color: #4caf50;
+}
+
 /* ============================= */
 /* Browse Files */
 /* ============================= */
@@ -673,13 +876,52 @@ body.dark-mode .control-buttons .main-btn.stop {
 }
 
 .file-preview {
-    margin-top: 10px;
-    max-width: 100%;
-    max-height: 300px;
-    border: 2px solid #ddd;
-    border-radius: 10px;
-    overflow: hidden;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    width: 100%;
+    max-width: 900px;
+    margin: 15px auto 0;
+    padding: 15px;
+    background: #f5f5f5;
+    border-radius: 12px;
+    text-align: center;
+    min-height: 100px;
 }
+
+.file-preview img,
+.file-preview video {
+    width: 100%;
+    max-width: 900px;
+    height: auto;
+    max-height: 600px;
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    margin-bottom: 15px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    object-fit: contain;
+}
+
+.file-preview p {
+    margin: 10px 0;
+    color: #333;
+    line-height: 1.6;
+}
+
+.file-preview strong {
+    color: #667eea;
+    font-size: 1.1em;
+}
+
+/* Dark mode support for file preview */
+body.dark-mode .file-preview {
+    background: #2a2a2a;
+}
+
+body.dark-mode .file-preview p {
+    color: white;
+}
+
+body.dark-mode .file-preview strong {
+    color: #a5b4fc;
+}
+
