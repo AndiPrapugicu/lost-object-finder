@@ -38,11 +38,6 @@ h1 {
     font-size: 1.1em;
 }
 
-h3 {
-    color: #333;
-    margin-bottom: 15px;
-}
-
 .card {
     background: white;
     padding: 25px;
@@ -51,80 +46,11 @@ h3 {
     margin-bottom: 20px;
 }
 
-.controls {
-    margin-bottom: 20px;
-}
-
-.primary-btn {
-    padding: 12px 24px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-}
-
-.primary-btn:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-}
-
-.primary-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.selected-objects {
-    margin: 15px 0;
-    padding: 15px;
-    background: #f8f9fa;
-    border-radius: 10px;
-    min-height: 50px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: center;
-}
-
-.no-selection {
-    color: #999;
-    font-style: italic;
-}
-
-.object-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-radius: 20px;
-    font-size: 14px;
-    font-weight: 500;
-}
-
-.remove-tag {
-    cursor: pointer;
-    font-weight: bold;
-    font-size: 18px;
-    line-height: 1;
-    padding: 0 4px;
-    border-radius: 50%;
-    transition: background 0.2s;
-}
-
-.remove-tag:hover {
-    background: rgba(255, 255, 255, 0.3);
-}
-
 .action-buttons {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
+    margin-bottom: 20px;
 }
 
 button {
@@ -158,7 +84,7 @@ button:disabled {
     background: #1a1a1a;
     border-radius: 12px;
     overflow: hidden;
-    min-height: 600px;
+    min-height: 400px;
     max-width: 800px;
     margin: 0 auto;
     display: flex;
@@ -176,11 +102,6 @@ button:disabled {
     text-align: center;
     color: #999;
     padding: 40px;
-}
-
-.loading p {
-    font-size: 18px;
-    line-height: 1.6;
 }
 
 .status {
@@ -209,170 +130,103 @@ button:disabled {
     border: 1px solid #bee5eb;
 }
 
-/* Modal Styles */
-.modal {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    background-color: rgba(0,0,0,0.6);
-    animation: fadeIn 0.3s;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-.modal-content {
-    background: white;
-    margin: 3% auto;
-    padding: 0;
-    border-radius: 15px;
-    width: 90%;
-    max-width: 900px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-    animation: slideDown 0.3s;
-}
-
-@keyframes slideDown {
-    from {
-        transform: translateY(-50px);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
-}
-
-.modal-header {
-    padding: 20px 25px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-radius: 15px 15px 0 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.modal-header h2 {
-    margin: 0;
-    font-size: 1.8em;
-}
-
-.close {
-    color: white;
-    font-size: 35px;
-    font-weight: bold;
-    cursor: pointer;
-    line-height: 1;
-    transition: transform 0.2s;
-}
-
-.close:hover {
-    transform: scale(1.2);
-}
-
-.modal-body {
-    padding: 25px;
-    max-height: 60vh;
-    overflow-y: auto;
-}
-
-.selection-actions {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.action-btn {
-    padding: 8px 16px;
-    background: #f0f0f0;
-    color: #333;
-    border: 2px solid #ddd;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.action-btn:hover {
-    background: #667eea;
-    color: white;
-    border-color: #667eea;
-    transform: translateY(-2px);
-}
-
-.selected-count {
-    margin-left: auto;
-    font-weight: bold;
-    color: #667eea;
-    font-size: 16px;
+/* Categories Horizontal Container */
+.categories-container {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 25px;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 2;
 }
 
 .category {
-    margin-bottom: 20px;
-    border: 2px solid #e0e0e0;
-    border-radius: 12px;
-    overflow: hidden;
-    transition: all 0.3s;
+  position: relative;
+  background: #667eea;
+  color: white;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  white-space: nowrap;
 }
 
 .category:hover {
-    border-color: #667eea;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+  background: #764ba2;
+  transform: scale(1.05);
 }
 
-.category-header {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    padding: 15px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    cursor: pointer;
-}
-
-.category-name {
-    font-weight: bold;
-    font-size: 16px;
-    color: #333;
-}
-
-.select-category-btn {
-    padding: 6px 14px;
-    background: #667eea;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.select-category-btn:hover {
-    background: #764ba2;
-    transform: scale(1.05);
+/* popup-ul cu obiecte apare corect peste restul */
+.category:hover .objects-grid-popup {
+  display: flex;
 }
 
 .objects-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 10px;
-    padding: 15px;
+    position: absolute;
+    top: 100%; /* sub categoria curentă */
+    left: 0;
+    z-index: 1000; /* mai mare decât celelalte categorii */
     background: white;
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    display: none; /* se arată la hover */
+    min-width: 150px; /* sau cât vrei */
+}
+
+
+.category:hover .objects-grid {
+    display: grid;
+}
+
+.objects-grid-popup {
+  position: absolute;
+  top: 110%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  z-index: 9999;
+  min-width: 260px;
 }
 
 .object-btn {
-    padding: 10px 12px;
+  padding: 6px 12px;
+  background: white;
+  color: #333;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.object-btn:hover {
+  border-color: #667eea;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
+}
+
+.object-btn.selected {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: #667eea;
+  transform: scale(1.05);
+}
+
+
+/* Individual Object Buttons */
+.object-btn {
+    padding: 8px 12px;
     background: white;
     color: #333;
     border: 2px solid #ddd;
@@ -397,51 +251,6 @@ button:disabled {
     transform: scale(1.05);
 }
 
-.modal-footer {
-    padding: 20px 25px;
-    background: #f8f9fa;
-    border-radius: 0 0 15px 15px;
-    display: flex;
-    gap: 10px;
-    justify-content: flex-end;
-}
-
-.secondary-btn {
-    padding: 10px 20px;
-    background: white;
-    color: #333;
-    border: 2px solid #ddd;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.secondary-btn:hover {
-    background: #f0f0f0;
-    border-color: #999;
-}
-
-/* Scrollbar styling */
-.modal-body::-webkit-scrollbar {
-    width: 10px;
-}
-
-.modal-body::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 10px;
-}
-
-.modal-body::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 10px;
-}
-
-.modal-body::-webkit-scrollbar-thumb:hover {
-    background: #764ba2;
-}
-
 @media (max-width: 768px) {
     body {
         padding: 10px;
@@ -451,22 +260,426 @@ button:disabled {
         font-size: 2em;
     }
 
-    .modal-content {
-        width: 95%;
-        margin: 5% auto;
+    .video-container {
+        min-height: 300px;
     }
 
-    .objects-grid {
-        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    .categories-container {
         gap: 8px;
     }
+}
+/* ================= POPUP OBIECTE PENTRU FIECARE CATEGORIE ================= */
 
-    .action-buttons {
-        flex-direction: column;
-    }
-
-    button {
-        width: 100%;
-    }
+.categories-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 20px;
 }
 
+.category {
+    position: relative; /* necesar pentru popup-ul absolut */
+    padding: 10px 15px;
+    background: #667eea;
+    color: white;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.3s, transform 0.2s;
+}
+
+.category:hover {
+    background: #764ba2;
+    transform: translateY(-2px);
+}
+
+/* Popup cu obiectele din categorie */
+.objects-grid {
+    position: absolute;
+    top: 110%; /* imediat sub categoria curentă */
+    left: 0;
+    z-index: 1000;
+    display: none; /* se afișează la hover */
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    min-width: 180px;
+}
+
+/* La hover pe categoria părinte, popup-ul devine vizibil */
+.category:hover .objects-grid {
+    display: flex;
+}
+
+/* Stil pentru butoanele obiectelor din popup */
+.object-btn {
+    padding: 6px 12px;
+    background: white;
+    color: #333;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.object-btn:hover {
+    border-color: #667eea;
+    background: #f0f0f0;
+    transform: translateY(-1px);
+}
+
+.object-btn.selected {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-color: #667eea;
+    transform: scale(1.05);
+}
+/* ================= POPUP OBIECTE PENTRU FIECARE CATEGORIE ================= */
+
+.categories-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 20px;
+    position: relative; /* container comun pentru popup-uri */
+}
+
+.category {
+    position: relative; /* pentru hover, popup-ul este absolut față de container */
+    padding: 10px 15px;
+    background: #667eea;
+    color: white;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.3s, transform 0.2s;
+    z-index: 1;
+}
+
+.category:hover {
+    background: #764ba2;
+    transform: translateY(-2px);
+}
+
+/* Popup cu obiectele din categorie */
+.objects-grid {
+    position: absolute;
+    top: 100%; /* imediat sub categoria curentă */
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999; /* mult mai mare decât categoriile */
+    display: none; /* se afișează la hover */
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    min-width: 180px;
+}
+
+/* La hover pe categoria părinte, popup-ul devine vizibil */
+.category:hover .objects-grid {
+    display: flex;
+}
+
+/* Stil pentru butoanele obiectelor din popup */
+.object-btn {
+    padding: 6px 12px;
+    background: white;
+    color: #333;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.object-btn:hover {
+    border-color: #667eea;
+    background: #f0f0f0;
+    transform: translateY(-1px);
+}
+
+.object-btn.selected {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-color: #667eea;
+    transform: scale(1.05);
+}
+/* ============================= */
+/* CONTROLS - Start / Stop */
+/* ============================= */
+.control-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.main-btn {
+  padding: 10px 22px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  color: white;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.main-btn.start {
+  background: linear-gradient(135deg, #00c853, #43a047);
+}
+
+.main-btn.start:hover {
+  background: linear-gradient(135deg, #43a047, #00c853);
+  transform: scale(1.05);
+}
+
+.main-btn.stop {
+  background: linear-gradient(135deg, #d32f2f, #f44336);
+}
+
+.main-btn.stop:hover {
+  background: linear-gradient(135deg, #f44336, #d32f2f);
+  transform: scale(1.05);
+}
+
+.main-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+.controls {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.control-btn {
+  background-color: #2a2a2a;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.3s;
+  font-weight: 600;
+}
+
+.control-btn:hover {
+  background-color: #444;
+  transform: scale(1.05);
+}
+.main-btn.select-all {
+    background: linear-gradient(135deg, #2196f3, #21cbf3); /* albastru */
+}
+
+.main-btn.deselect-all {
+    background: linear-gradient(135deg, #ff9800, #ffb74d); /* portocaliu */
+}
+
+.main-btn.select-all:hover,
+.main-btn.deselect-all:hover {
+    transform: scale(1.05);
+}
+
+#selectedObjectsContainer {
+    margin-top: 12px;
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+#selectedCountDisplay {
+    font-weight: bold;
+    color: #667eea;
+}
+
+#selectedObjectsList {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+}
+
+#selectedObjectsList span {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 12px;
+    font-size: 13px;
+}
+.hidden {
+    display: none;
+}
+
+.search-container {
+    text-align: center;
+    margin-bottom: 12px;
+    position: relative;
+}
+
+#objectSearch {
+    width: 60%;
+    max-width: 400px;
+    padding: 8px 12px;
+    font-size: 14px;
+    border-radius: 8px;
+    border: 2px solid #667eea;
+}
+
+#objectSearch:focus {
+    outline: none;
+    border-color: #764ba2;
+}
+
+#searchResults {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-top: 2px;
+    width: 60%;
+    max-width: 400px;
+    max-height: 200px;
+    overflow-y: auto;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    z-index: 9999;
+}
+
+#searchResults span {
+    display: block;
+    padding: 6px 10px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+#searchResults span:hover {
+    background: #667eea;
+    color: white;
+}
+
+.hidden {
+    display: none;
+}
+/* ============================= */
+/* DARK MODE TOGGLE BUTTON       */
+/* ============================= */
+.dark-mode-toggle {
+  position: fixed;
+  top: 15px;
+  right: 20px;
+  z-index: 1000;
+
+  width: 50px;              /* mărimea butonului */
+  height: 50px;
+  border-radius: 50%;        /* face butonul rotund */
+  border: none;
+  background: linear-gradient(135deg, #667eea 0%, #000000 100%); /* gradient frumos */
+  color: white;
+  font-size: 24px;           /* iconița să fie vizibilă */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.25);
+  transition: all 0.3s ease;
+}
+
+.dark-mode-toggle:hover {
+  transform: scale(1.1);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+}
+
+.dark-mode-toggle:active {
+  transform: scale(0.95);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+}
+
+body.dark-mode {
+  background: #121212;
+  color: #e0e0e0;
+}
+
+body.dark-mode header,
+body.dark-mode .card {
+  background: #1e1e1e;
+  color: #e0e0e0;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.7);
+}
+
+body.dark-mode .category {
+  background: #333;
+  color: #fff;
+}
+
+body.dark-mode .category:hover {
+  background: #555;
+}
+
+body.dark-mode .object-btn {
+  background: #2a2a2a;
+  color: #fff;
+  border-color: #555;
+}
+
+body.dark-mode .object-btn.selected {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+body.dark-mode .control-buttons .main-btn.start {
+  background: linear-gradient(135deg, #00c853, #43a047);
+}
+
+body.dark-mode .control-buttons .main-btn.stop {
+  background: linear-gradient(135deg, #d32f2f, #f44336);
+}
+/* ============================= */
+/* Browse Files */
+/* ============================= */
+.browse-files-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 15px;
+    gap: 10px;
+}
+
+.main-btn.browse {
+    background: linear-gradient(135deg, #ff9800, #ff5722);
+}
+
+.main-btn.browse:hover {
+    background: linear-gradient(135deg, #ff5722, #ff9800);
+    transform: scale(1.05);
+}
+
+.file-preview {
+    margin-top: 10px;
+    max-width: 100%;
+    max-height: 300px;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}

@@ -43,6 +43,56 @@ camera = None
 static_path = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
 
+# YOLO object categories organized by type
+OBJECT_CATEGORIES = {
+    "People & Animals": {
+        "icon": "👥",
+        "objects": ["person", "bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe"]
+    },
+    "Vehicles": {
+        "icon": "🚗",
+        "objects": ["bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat"]
+    },
+    "Street Objects": {
+        "icon": "🏙️",
+        "objects": ["traffic light", "fire hydrant", "stop sign", "parking meter", "bench"]
+    },
+    "Accessories": {
+        "icon": "👜",
+        "objects": ["backpack", "umbrella", "handbag", "tie", "suitcase"]
+    },
+    "Sports": {
+        "icon": "⚽",
+        "objects": ["frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", 
+                   "skateboard", "surfboard", "tennis racket"]
+    },
+    "Kitchen": {
+        "icon": "🍽️",
+        "objects": ["bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl"]
+    },
+    "Food": {
+        "icon": "🍕",
+        "objects": ["banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", 
+                   "donut", "cake"]
+    },
+    "Furniture": {
+        "icon": "🛋️",
+        "objects": ["chair", "couch", "potted plant", "bed", "dining table", "toilet"]
+    },
+    "Electronics": {
+        "icon": "💻",
+        "objects": ["tv", "laptop", "mouse", "remote", "keyboard", "cell phone"]
+    },
+    "Appliances": {
+        "icon": "🏠",
+        "objects": ["microwave", "oven", "toaster", "sink", "refrigerator"]
+    },
+    "Indoor": {
+        "icon": "🖼️",
+        "objects": ["book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"]
+    }
+}
+
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -62,11 +112,26 @@ async def api_root():
         "status": "ok",
         "endpoints": {
             "health": "/health",
+            "categories": "/categories",
             "track": "/track?target_object=phone",
             "detect": "/detect (POST)",
             "upload": "/upload (POST)",
             "test_camera": "/test_camera"
         }
+    }
+
+
+@app.get("/categories")
+async def get_categories():
+    """
+    Get all object categories with their objects.
+    This endpoint provides structured data for the frontend to display categories.
+    """
+    return {
+        "success": True,
+        "categories": OBJECT_CATEGORIES,
+        "total_categories": len(OBJECT_CATEGORIES),
+        "total_objects": sum(len(cat["objects"]) for cat in OBJECT_CATEGORIES.values())
     }
 
 
