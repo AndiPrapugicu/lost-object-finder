@@ -97,10 +97,10 @@ def get_camera():
                 try:
                     camera = cv2.VideoCapture(index, backend)
 
-                    # Set properties BEFORE testing frame read - ULTRA OPTIMIZED for maximum speed
-                    camera.set(cv2.CAP_PROP_FRAME_WIDTH, 480)  # Very small resolution 640 -> 480 -> 320
-                    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)  # Very small resolution 480 -> 360 -> 240
-                    camera.set(cv2.CAP_PROP_FPS, 60)  # Higher FPS request
+                    # Set properties BEFORE testing frame read - BALANCED for speed and quality
+                    camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)  # Good resolution for detection
+                    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)  # Good resolution for detection
+                    camera.set(cv2.CAP_PROP_FPS, 30)  # Standard FPS
                     camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))  # Use MJPEG for speed
 
                     # Only set buffer size for non-MSMF backends (causes issues with MSMF)
@@ -244,7 +244,7 @@ def generate_frames(target_object: Optional[str] = None):
     current_fps = 0
     found_objects = set()  # Track which target objects were found
     consecutive_errors = 0  # Track consecutive read errors
-    frame_skip = 2  # Process every 4th frame for MAXIMUM speed
+    frame_skip = 2  # Process every 2nd frame for balanced speed/accuracy
     frame_count = 0
     last_detection_results = None  # Cache last detection results
 
@@ -280,9 +280,9 @@ def generate_frames(target_object: Optional[str] = None):
 
             # OPTIMIZATION: Skip frames - only run YOLO every Nth frame
             if frame_count % frame_skip == 0:
-                # Run YOLO detection with AGGRESSIVE optimization
-                # Very small imgsz and high confidence for maximum speed
-                results = model(frame, conf=0.5, verbose=False, imgsz=160, half=False)
+                # Run YOLO detection with BALANCED optimization
+                # imgsize 320 for good accuracy, conf 0.4 for better detection
+                results = model(frame, conf=0.4, verbose=False, imgsz=320, device='cpu', half=False, max_det=30)
                 last_detection_results = results
                 found_objects.clear()  # Reset for each frame
             else:
@@ -305,15 +305,18 @@ def generate_frames(target_object: Optional[str] = None):
                     # ONLY draw target objects - skip others for speed
                     if is_target:
                         found_objects.add(class_name.lower())
-                        # Draw GREEN box for target object (thin line)
+                        # Draw GREEN box for target object (thicker line)
                         color = (0, 255, 0)  # Green
-                        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 1)
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
 
-                        # Add "FOUND!" text - small font
-                        label = f"FOUND!"
+                        # Add object name and confidence
+                        label = f"{class_name.upper()} {confidence:.2f}"
+                        # Background for text
+                        (text_width, text_height), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)
+                        cv2.rectangle(frame, (x1, y1 - text_height - 8), (x1 + text_width, y1), color, -1)
                         cv2.putText(
-                            frame, label, (x1, y1 - 8),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1
+                            frame, label, (x1, y1 - 5),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2
                         )
 
             # Add overlay status - smaller
@@ -337,9 +340,9 @@ def generate_frames(target_object: Optional[str] = None):
                 cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 0), 1
             )
             
-            # Encode frame as JPEG with VERY LOW quality for maximum speed
+            # Encode frame as JPEG with BALANCED quality for speed and clarity
             ret, buffer = cv2.imencode('.jpg', frame, [
-                cv2.IMWRITE_JPEG_QUALITY, 40,  # Very low quality for speed
+                cv2.IMWRITE_JPEG_QUALITY, 55,  # Balanced quality
                 cv2.IMWRITE_JPEG_OPTIMIZE, 0   # Disable optimization for speed
             ])
             if not ret:
@@ -499,4 +502,4 @@ if __name__ == "__main__":
     print("\n🎯 Available object classes (YOLOv8):")
     if model:
         print("   ", ", ".join(list(model.names.values())[:20]), "... and more")
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=False)
+    uvicorn.run(app, host="127.0.0.1", port=8000, reload=False)
